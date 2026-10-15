@@ -2,6 +2,7 @@
 #
 # Fase 1: PostgreSQL + Inventory + Orders.
 # Fase 2: Consul (registro, descubrimiento y health checks).
+# Fase 3: balanceo del lado cliente (INVENTORY_BALANCER, --scale inventory=N).
 # Las credenciales se leen de .env (ver .env.example).
 #
 # Nota: los puertos HTTP de los servicios se publican en 127.0.0.1 de forma
@@ -68,6 +69,8 @@ services:
       <<: *consul-env
       APP_DB_DSN: postgres://inventory:${INVENTORY_DB_PASSWORD}@postgres:5432/inventory?sslmode=disable
       APP_LOG_LEVEL: info
+      # Peso opcional para wrr (1..1000; 100 si no se define).
+      INSTANCE_WEIGHT: ${INVENTORY_WEIGHT:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,6 +93,8 @@ services:
       APP_DB_DSN: postgres://orders:${ORDERS_DB_PASSWORD}@postgres:5432/orders?sslmode=disable
       # Nombre lógico: el cliente gRPC resuelve las instancias a través de Consul.
       APP_INVENTORY_ENDPOINT: discovery:///inventory-service
+      # Selector de balanceo del lado cliente: wrr | p2c | random.
+      APP_INVENTORY_BALANCER: ${INVENTORY_BALANCER:-wrr}
       APP_LOG_LEVEL: info
     depends_on:
       postgres:

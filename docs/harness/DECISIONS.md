@@ -154,3 +154,15 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
 - Vive en `internal/service/lab.go`, fuera del dominio. En la Fase 4 se restringirá a modo laboratorio.
 - **Puerto de Inventory en el host:** efímero (`127.0.0.1::8000`) para poder escalar. Los scripts lo
   obtienen con `docker compose port --index N inventory 8000`.
+
+## ADR-017 — Selector de balanceo configurable y pesos por instancia
+**Estado:** Aceptada (2026-10-15, Fase 3)
+- **Decisión:** `inventory.balancer` (`wrr` por defecto, `p2c`, `random`) se aplica con
+  `selector.SetGlobalSelector` en el main de Orders, antes de crear el cliente. Es global al proceso,
+  así que cambiarlo requiere reiniciar (documentado). Inventory publica el metadato `weight` desde
+  `INSTANCE_WEIGHT`, y wrr lo usa como peso del nodo.
+- **Hallazgo:** el balancer gRPC de Kratos captura el selector global en su `init()`. Funciona porque
+  `transport/http` se inicializa antes y fija wrr (ver docs/fases/fase-3.md). Hay pruebas unitarias
+  que fijan el comportamiento (`services/orders/internal/server/balancer_test.go`).
+- **Alternativas:** filtros de nodos por llamada (`grpc.WithNodeFilter`), más potentes, pero no son
+  una "estrategia" de balanceo; se reservan para posibles experimentos de versión o zona.

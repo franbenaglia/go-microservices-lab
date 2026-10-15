@@ -13,6 +13,22 @@ Entrada por sesión, la más reciente arriba. Plantilla:
 
 ---
 
+## Sesión 1 (continuación 3) — 2026-10-15 — Fase 3
+**Hecho:** selector configurable (`inventory.balancer`, `server.SetBalancer`), pesos por instancia
+(`INSTANCE_WEIGHT` → metadato `weight`), campo `balancer` en ProbeInventory, `INVENTORY_BALANCER` e
+`INVENTORY_WEIGHT` en compose, `scripts/lab/loadbalancing.sh` + `make lab-lb`, pruebas unitarias del
+selector, docs/fases/fase-3.md.
+**Verificación:**
+- `make vet` OK; `make test-integration`: 7 paquetes ok.
+- `make lab-lb` 19/19 con MODE=stop y MODE=kill: 30/30/30 con rotación estricta; caída con 300 llamadas
+  continuas sin errores; weight=300 → 60/120; p2c 51/29/10; random 33/30/27.
+- Regresión: `make smoke` 17/17, `make lab-discovery` 10/10.
+**Decisiones:** ADR-017.
+**Problemas encontrados:** orden de init() del balancer de Kratos (documentado); p2c sin carga no reparte de forma uniforme (esperado).
+**Siguiente:** Fase 4 (Resiliencia: circuit breaker con gobreaker, timeouts, retries, inyección de fallos).
+
+---
+
 ## Sesión 1 (continuación 2) — 2026-10-15 — Fase 2
 **Hecho:** Consul 2.0.4 en compose; `pkg/discovery` (registry + check de readiness + Setup); registro en
 ambos servicios; Orders con `discovery:///inventory-service`; `orders.v1.LabService` (ProbeInventory);

@@ -16,6 +16,8 @@ inventory:
   endpoint: "${INVENTORY_ENDPOINT:discovery:///inventory-service}"
   timeout: "${INVENTORY_TIMEOUT:2s}"
   compensation_timeout: "${INVENTORY_COMPENSATION_TIMEOUT:2s}"
+  # Balanceo del lado cliente: wrr | p2c | random (requiere reinicio).
+  balancer: "${INVENTORY_BALANCER:wrr}"
 log:
   level: "${LOG_LEVEL:info}"
 consul:

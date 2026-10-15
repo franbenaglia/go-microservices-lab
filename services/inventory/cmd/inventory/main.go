@@ -97,11 +97,20 @@ func run() error {
 		return err
 	}
 
+	md := map[string]string{"instance": id.Instance, "hostname": platform.Hostname()}
+	weight, err := platform.InstanceWeight()
+	if err != nil {
+		return err
+	}
+	if weight != "" {
+		md["weight"] = weight
+	}
+
 	app := kratos.New(append(regOpts,
 		kratos.ID(id.Instance),
 		kratos.Name(id.Service),
 		kratos.Version(id.Version),
-		kratos.Metadata(map[string]string{"instance": id.Instance, "hostname": platform.Hostname()}),
+		kratos.Metadata(md),
 		kratos.Logger(logger),
 		kratos.Server(httpSrv, grpcSrv),
 		kratos.BeforeStop(func(context.Context) error {
@@ -114,6 +123,7 @@ func run() error {
 	logger.Info("arrancando",
 		slog.String("http", cfg.Server.HTTP.Addr),
 		slog.String("grpc", cfg.Server.GRPC.Addr),
-		slog.Bool("consul", cfg.Consul.Enabled()))
+		slog.Bool("consul", cfg.Consul.Enabled()),
+		slog.String("weight", weight))
 	return app.Run()
 }

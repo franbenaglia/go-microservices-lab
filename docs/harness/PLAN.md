@@ -31,13 +31,16 @@ Cada fase termina con: compilar → pruebas → verificación real → resumen �
 - **Aceptación:** cumplida. `make lab-discovery` da 10/10 en los 3 modos; readiness con la base caída
   saca la instancia; `make test-integration` y `make smoke` en verde.
 
-## Fase 3 — Load Balancing
-- [x] Quitar el puerto temporal 8082 de inventory (ahora efímero; hecho en la Fase 2)
-- [ ] `docker compose up --scale inventory=3`; instance ID = hostname/UUID en `Diagnose`
-- [x] Endpoint `POST /api/orders/lab/lb {count}` → distribución por instancia (hecho en la Fase 2)
-- [ ] Selector configurable (wrr por defecto, p2c, random); requiere reinicio
-- [ ] Script `scripts/lab/loadbalancing.sh` (incluye caída de una réplica)
-- **Aceptación:** distribución visible en las 3 réplicas; al caer una, el tráfico se redistribuye sin errores sostenidos.
+## Fase 3 — Load Balancing ✅ (2026-10-15)
+- [x] Quitar el puerto fijo de inventory (efímero; hecho en la Fase 2)
+- [x] `docker compose up --scale inventory=3`; el ID de instancia aparece en `Diagnose` y coincide con Consul
+- [x] Endpoint `POST /api/orders/lab/lb {count, interval_ms}` → distribución, secuencia y balancer
+- [x] Selector configurable (wrr por defecto, p2c, random) y pesos por instancia (`INSTANCE_WEIGHT`)
+- [x] Script `scripts/lab/loadbalancing.sh` (`make lab-lb`): 3 réplicas, caída con tráfico continuo, pesos y comparación de selectores
+- [x] Documentación del balanceo interno frente al externo (docs/fases/fase-3.md)
+- **Aceptación:** cumplida. `make lab-lb` 19/19 (MODE=stop y kill); reparto 30/30/30; 0 errores
+  durante la caída; peso 300 → 50%.
+- Pendiente para la Fase 4: comparar p2c frente a wrr con latencia artificial en una réplica.
 
 ## Fase 4 — Resiliencia
 - [ ] Timeouts por llamada y respeto del deadline
@@ -45,6 +48,8 @@ Cada fase termina con: compilar → pruebas → verificación real → resumen �
 - [ ] Adaptador del circuit breaker (ADR-002) con estado observable y pruebas de transiciones
 - [ ] Inyección de fallos en Inventory (ADR-008), desactivada por defecto
 - [ ] Script `scripts/lab/resilience.sh`: sin/con retries × sin/con breaker
+- [ ] Restringir los endpoints `/api/orders/lab/*` a modo laboratorio (ADR-016)
+- [ ] p2c frente a wrr con latencia inyectada en una réplica
 - **Aceptación:** se observan CLOSED→OPEN→HALF-OPEN→CLOSED y la comparativa queda documentada.
 
 ## Fase 5 — Observabilidad

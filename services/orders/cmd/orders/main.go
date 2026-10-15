@@ -103,6 +103,9 @@ func run() error {
 	if reg != nil {
 		disc = reg
 	}
+	if err := server.SetBalancer(cfg.Inventory.Balancer); err != nil {
+		return err
+	}
 	conn, err := server.NewInventoryConn(context.Background(), cfg.Inventory, disc, logger)
 	if err != nil {
 		return fmt.Errorf("cliente de inventory: %w", err)
@@ -118,7 +121,7 @@ func run() error {
 	uc := biz.NewOrderUsecase(data.NewOrderRepo(pool), inv, newID, cfg.Inventory.CompensationTimeout.Std())
 	svc := service.NewOrdersService(uc, logger)
 	ordersv1.RegisterOrdersServiceHTTPServer(httpSrv, svc)
-	lab := service.NewLabService(invClient)
+	lab := service.NewLabService(invClient, cfg.Inventory.Balancer)
 	ordersv1.RegisterLabServiceHTTPServer(httpSrv, lab)
 	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger)
 
@@ -139,6 +142,7 @@ func run() error {
 		slog.String("http", cfg.Server.HTTP.Addr),
 		slog.String("grpc", cfg.Server.GRPC.Addr),
 		slog.String("inventory", cfg.Inventory.Endpoint),
+		slog.String("balancer", cfg.Inventory.Balancer),
 		slog.Bool("consul", cfg.Consul.Enabled()))
 	return app.Run()
 }

@@ -47,6 +47,9 @@ type Inventory struct {
 	Timeout platform.Duration `json:"timeout"`
 	// CompensationTimeout limita la liberación compensatoria de reservas.
 	CompensationTimeout platform.Duration `json:"compensation_timeout"`
+	// Balancer es el selector del balanceo del lado cliente: wrr (por
+	// defecto en Kratos), p2c o random. Es global al proceso: requiere reinicio.
+	Balancer string `json:"balancer"`
 }
 
 // Log es la configuración de logging.
@@ -71,6 +74,11 @@ func (c *Config) Validate() error {
 	}
 	if strings.HasPrefix(c.Inventory.Endpoint, "discovery:///") && !c.Consul.Enabled() {
 		errs = append(errs, errors.New("inventory.endpoint usa discovery:/// pero consul.address está vacío"))
+	}
+	switch c.Inventory.Balancer {
+	case "wrr", "p2c", "random":
+	default:
+		errs = append(errs, fmt.Errorf("inventory.balancer %q inválido (wrr, p2c, random)", c.Inventory.Balancer))
 	}
 	if c.Inventory.Timeout.Std() <= 0 {
 		errs = append(errs, errors.New("inventory.timeout debe ser positivo"))

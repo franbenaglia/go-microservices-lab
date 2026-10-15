@@ -49,4 +49,6 @@ message ProbeInventoryResponse {
   double max_latency_ms = 7;
   // Instancia que atendió cada llamada, en orden ("" si falló).
   repeated string sequence = 8;
+  // Selector de balanceo del cliente gRPC (wrr, p2c, random).
+  string balancer = 9;
 }

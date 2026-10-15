@@ -195,7 +195,9 @@ type ProbeInventoryResponse struct {
 	AvgLatencyMs float64       `protobuf:"fixed64,6,opt,name=avg_latency_ms,json=avgLatencyMs,proto3" json:"avg_latency_ms,omitempty"`
 	MaxLatencyMs float64       `protobuf:"fixed64,7,opt,name=max_latency_ms,json=maxLatencyMs,proto3" json:"max_latency_ms,omitempty"`
 	// Instancia que atendió cada llamada, en orden ("" si falló).
-	Sequence      []string `protobuf:"bytes,8,rep,name=sequence,proto3" json:"sequence,omitempty"`
+	Sequence []string `protobuf:"bytes,8,rep,name=sequence,proto3" json:"sequence,omitempty"`
+	// Selector de balanceo del cliente gRPC (wrr, p2c, random).
+	Balancer      string `protobuf:"bytes,9,opt,name=balancer,proto3" json:"balancer,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -286,6 +288,13 @@ func (x *ProbeInventoryResponse) GetSequence() []string {
 	return nil
 }
 
+func (x *ProbeInventoryResponse) GetBalancer() string {
+	if x != nil {
+		return x.Balancer
+	}
+	return ""
+}
+
 var File_orders_v1_lab_proto protoreflect.FileDescriptor
 
 const file_orders_v1_lab_proto_rawDesc = "" +
@@ -302,7 +311,7 @@ const file_orders_v1_lab_proto_rawDesc = "" +
 	"\n" +
 	"ErrorCount\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x05R\x05count\"\xb6\x02\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\xd2\x02\n" +
 	"\x16ProbeInventoryResponse\x12\x14\n" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x1c\n" +
 	"\tsucceeded\x18\x02 \x01(\x05R\tsucceeded\x12\x16\n" +
@@ -312,7 +321,8 @@ const file_orders_v1_lab_proto_rawDesc = "" +
 	"\x06errors\x18\x05 \x03(\v2\x15.orders.v1.ErrorCountR\x06errors\x12$\n" +
 	"\x0eavg_latency_ms\x18\x06 \x01(\x01R\favgLatencyMs\x12$\n" +
 	"\x0emax_latency_ms\x18\a \x01(\x01R\fmaxLatencyMs\x12\x1a\n" +
-	"\bsequence\x18\b \x03(\tR\bsequence2\x82\x01\n" +
+	"\bsequence\x18\b \x03(\tR\bsequence\x12\x1a\n" +
+	"\bbalancer\x18\t \x01(\tR\bbalancer2\x82\x01\n" +
 	"\n" +
 	"LabService\x12t\n" +
 	"\x0eProbeInventory\x12 .orders.v1.ProbeInventoryRequest\x1a!.orders.v1.ProbeInventoryResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/api/orders/lab/lbBLZJgithub.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1;ordersv1b\x06proto3"

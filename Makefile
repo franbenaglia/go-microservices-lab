@@ -58,6 +58,10 @@ logs: ## Logs de todos los servicios (make logs S=orders para uno)
 lab-discovery: ## Escenarios de Service Discovery (MODE=pause|kill|stop)
 	./scripts/lab/discovery.sh
 
+.PHONY: lab-lb
+lab-lb: ## Escenarios de balanceo del lado cliente (MODE=stop|kill)
+	./scripts/lab/loadbalancing.sh
+
 .PHONY: smoke
 smoke: ## Prueba de humo de la Fase 1 contra la plataforma en marcha
 	./scripts/smoke.sh

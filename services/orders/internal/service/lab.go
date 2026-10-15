@@ -26,6 +26,7 @@ type LabService struct {
 	ordersv1.UnimplementedLabServiceServer
 
 	inventory inventoryv1.InventoryServiceClient
+	balancer  string
 }
 
 var (
@@ -34,8 +35,8 @@ var (
 )
 
 // NewLabService construye el servicio de laboratorio.
-func NewLabService(inv inventoryv1.InventoryServiceClient) *LabService {
-	return &LabService{inventory: inv}
+func NewLabService(inv inventoryv1.InventoryServiceClient, balancer string) *LabService {
+	return &LabService{inventory: inv, balancer: balancer}
 }
 
 // ProbeInventory envía llamadas Diagnose consecutivas y resume la distribución.
@@ -54,7 +55,7 @@ func (s *LabService) ProbeInventory(ctx context.Context, req *ordersv1.ProbeInve
 
 	byInstance := map[string]int32{}
 	byError := map[string]int32{}
-	resp := &ordersv1.ProbeInventoryResponse{Sequence: make([]string, 0, count)}
+	resp := &ordersv1.ProbeInventoryResponse{Sequence: make([]string, 0, count), Balancer: s.balancer}
 	var totalLatency, maxLatency time.Duration
 
 	for i := range count {
