@@ -13,6 +13,8 @@ import (
 	"github.com/go-kratos/kratos/v3"
 	klog "github.com/go-kratos/kratos/v3/log"
 
+	inventoryv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/inventory/v1"
+	"github.com/franbenaglia/go-microservices-lab/pkg/discovery"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
 	"github.com/franbenaglia/go-microservices-lab/pkg/postgres"
 	"github.com/franbenaglia/go-microservices-lab/services/inventory/internal/biz"
@@ -85,14 +87,21 @@ func run() error {
 
 	uc := biz.NewInventoryUsecase(data.NewProductRepo(pool))
 	svc := service.NewInventoryService(uc, id, logger)
-	httpSrv := server.NewHTTPServer(cfg.Server.HTTP, svc, health, logger)
+	httpSrv := server.NewHTTPServer(cfg.Server.HTTP, health, logger)
+	inventoryv1.RegisterInventoryServiceHTTPServer(httpSrv, svc)
 	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger)
 
-	app := kratos.New(
+	// Registro en Consul (si está configurado) con check de readiness.
+	regOpts, _, err := discovery.Setup(cfg.Consul, httpSrv)
+	if err != nil {
+		return err
+	}
+
+	app := kratos.New(append(regOpts,
 		kratos.ID(id.Instance),
 		kratos.Name(id.Service),
 		kratos.Version(id.Version),
-		kratos.Metadata(map[string]string{"instance": id.Instance}),
+		kratos.Metadata(map[string]string{"instance": id.Instance, "hostname": platform.Hostname()}),
 		kratos.Logger(logger),
 		kratos.Server(httpSrv, grpcSrv),
 		kratos.BeforeStop(func(context.Context) error {
@@ -101,7 +110,10 @@ func run() error {
 			logger.Info("apagando: instancia marcada como no preparada")
 			return nil
 		}),
-	)
-	logger.Info("arrancando", slog.String("http", cfg.Server.HTTP.Addr), slog.String("grpc", cfg.Server.GRPC.Addr))
+	)...)
+	logger.Info("arrancando",
+		slog.String("http", cfg.Server.HTTP.Addr),
+		slog.String("grpc", cfg.Server.GRPC.Addr),
+		slog.Bool("consul", cfg.Consul.Enabled()))
 	return app.Run()
 }

@@ -4,16 +4,19 @@ package conf
 import (
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/franbenaglia/go-microservices-lab/pkg/discovery"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
 )
 
 // Config es la configuración completa del servicio.
 type Config struct {
-	Server    Server    `json:"server"`
-	Data      Data      `json:"data"`
-	Inventory Inventory `json:"inventory"`
-	Log       Log       `json:"log"`
+	Server    Server           `json:"server"`
+	Data      Data             `json:"data"`
+	Inventory Inventory        `json:"inventory"`
+	Log       Log              `json:"log"`
+	Consul    discovery.Config `json:"consul"`
 }
 
 // Server agrupa los servidores HTTP y gRPC.
@@ -37,8 +40,8 @@ type Data struct {
 
 // Inventory configura el cliente gRPC hacia Inventory Service.
 type Inventory struct {
-	// Endpoint, p. ej. "inventory:9000". En la Fase 2 se sustituye por
-	// "discovery:///inventory-service" (resolución vía Consul).
+	// Endpoint: "discovery:///inventory-service" (resolución vía Consul) o
+	// una dirección fija "host:puerto" (solo para pruebas locales sin Consul).
 	Endpoint string `json:"endpoint"`
 	// Timeout por llamada gRPC.
 	Timeout platform.Duration `json:"timeout"`
@@ -66,8 +69,14 @@ func (c *Config) Validate() error {
 	if c.Inventory.Endpoint == "" {
 		errs = append(errs, errors.New("inventory.endpoint es obligatorio"))
 	}
+	if strings.HasPrefix(c.Inventory.Endpoint, "discovery:///") && !c.Consul.Enabled() {
+		errs = append(errs, errors.New("inventory.endpoint usa discovery:/// pero consul.address está vacío"))
+	}
 	if c.Inventory.Timeout.Std() <= 0 {
 		errs = append(errs, errors.New("inventory.timeout debe ser positivo"))
+	}
+	if err := c.Consul.Validate(); err != nil {
+		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
 }

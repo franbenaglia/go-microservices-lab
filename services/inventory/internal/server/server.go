@@ -26,8 +26,10 @@ func middlewares(logger *slog.Logger) []middleware.Middleware {
 	}
 }
 
-// NewHTTPServer publica la API REST y los endpoints de salud.
-func NewHTTPServer(c conf.Listener, svc *service.InventoryService, health *platform.Health, logger *slog.Logger) *http.Server {
+// NewHTTPServer crea el servidor HTTP con los endpoints de salud. La API REST
+// se registra después con inventoryv1.RegisterInventoryServiceHTTPServer, para que el
+// endpoint (y la URL de readiness) se conozca antes de construir el resto.
+func NewHTTPServer(c conf.Listener, health *platform.Health, logger *slog.Logger) *http.Server {
 	opts := append([]http.ServerOption{
 		http.Address(c.Addr),
 		http.Timeout(c.Timeout.Std()),
@@ -36,7 +38,6 @@ func NewHTTPServer(c conf.Listener, svc *service.InventoryService, health *platf
 	srv := http.NewServer(opts...)
 	srv.HandleFunc("/livez", health.LivenessHandler())
 	srv.HandleFunc("/readyz", health.ReadinessHandler())
-	inventoryv1.RegisterInventoryServiceHTTPServer(srv, svc)
 	return srv
 }
 

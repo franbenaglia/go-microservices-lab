@@ -10,6 +10,7 @@ import (
 	"github.com/go-kratos/kratos/v3/middleware/logging"
 	"github.com/go-kratos/kratos/v3/middleware/metadata"
 	"github.com/go-kratos/kratos/v3/middleware/recovery"
+	"github.com/go-kratos/kratos/v3/registry"
 	"github.com/go-kratos/kratos/v3/transport/grpc"
 	"github.com/go-kratos/kratos/v3/transport/http"
 	ggrpc "google.golang.org/grpc"
@@ -29,8 +30,10 @@ func middlewares(logger *slog.Logger) []middleware.Middleware {
 	}
 }
 
-// NewHTTPServer publica la API REST y los endpoints de salud.
-func NewHTTPServer(c conf.Listener, svc *service.OrdersService, health *platform.Health, logger *slog.Logger) *http.Server {
+// NewHTTPServer crea el servidor HTTP con los endpoints de salud. La API REST
+// se registra después con ordersv1.RegisterOrdersServiceHTTPServer, para que el
+// endpoint (y la URL de readiness) se conozca antes de construir el resto.
+func NewHTTPServer(c conf.Listener, health *platform.Health, logger *slog.Logger) *http.Server {
 	opts := append([]http.ServerOption{
 		http.Address(c.Addr),
 		http.Timeout(c.Timeout.Std()),
@@ -39,7 +42,6 @@ func NewHTTPServer(c conf.Listener, svc *service.OrdersService, health *platform
 	srv := http.NewServer(opts...)
 	srv.HandleFunc("/livez", health.LivenessHandler())
 	srv.HandleFunc("/readyz", health.ReadinessHandler())
-	ordersv1.RegisterOrdersServiceHTTPServer(srv, svc)
 	return srv
 }
 
@@ -57,13 +59,21 @@ func NewGRPCServer(c conf.Listener, svc *service.OrdersService, logger *slog.Log
 // NewInventoryConn crea la conexión gRPC hacia Inventory. El timeout se aplica a
 // cada llamada; si el contexto entrante ya tiene un deadline más corto, gRPC
 // respeta el menor de los dos.
-func NewInventoryConn(ctx context.Context, c conf.Inventory, logger *slog.Logger) (*ggrpc.ClientConn, error) {
-	return grpc.NewClient(ctx,
+//
+// Con un endpoint "discovery:///inventory-service", el resolver de Kratos
+// consulta Consul (disc) y mantiene la lista de instancias sanas; el balanceo
+// entre ellas lo hace el cliente (por defecto, weighted round robin).
+func NewInventoryConn(ctx context.Context, c conf.Inventory, disc registry.Discovery, logger *slog.Logger) (*ggrpc.ClientConn, error) {
+	opts := []grpc.ClientOption{
 		grpc.WithEndpoint(c.Endpoint),
 		grpc.WithTimeout(c.Timeout.Std()),
 		grpc.WithMiddleware(
 			metadata.Client(),
 			logging.Client(logger),
 		),
-	)
+	}
+	if disc != nil {
+		opts = append(opts, grpc.WithDiscovery(disc))
+	}
+	return grpc.NewClient(ctx, opts...)
 }

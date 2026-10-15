@@ -21,18 +21,20 @@ Cada fase termina con: compilar → pruebas → verificación real → resumen �
 - [x] `compose.yaml`: postgres (2 bases, 2 usuarios), inventory y orders; imágenes distroless
 - **Aceptación:** cumplida. `make test-integration` en verde y `make smoke` 17/17 OK. Ver docs/fases/fase-1.md.
 
-## Fase 2 — Service Discovery
-- [ ] Consul en compose (modo servidor, volumen)
-- [ ] Quitar `APP_INVENTORY_ENDPOINT` fijo de compose
-- [ ] Registro con `contrib/registry/consul/v3`: metadatos, check HTTP `/readyz`, deregister-after
-- [ ] Orders descubre `discovery:///inventory-service` (sin endpoint fijo)
-- [ ] Script `scripts/lab/discovery.sh` con los escenarios 1–6 del §5
-- **Aceptación:** el script muestra el registro, la baja y la reincorporación de instancias.
+## Fase 2 — Service Discovery ✅ (2026-10-15)
+- [x] Consul 2.0.4 en compose (modo servidor, volumen, UI en 127.0.0.1:8500)
+- [x] Registro con `contrib/registry/consul/v3`: metadatos, TTL, TCP y check HTTP `/readyz`, deregister-after 1m
+- [x] Orders descubre `discovery:///inventory-service` (sin endpoint fijo en compose)
+- [x] Endpoint de diagnóstico `POST /api/orders/lab/lb` (adelantado de la Fase 3)
+- [x] Script `scripts/lab/discovery.sh` con los escenarios 1–6 del §5 (MODE=pause|kill|stop)
+- [x] Pruebas de integración contra Consul (`pkg/discovery`)
+- **Aceptación:** cumplida. `make lab-discovery` da 10/10 en los 3 modos; readiness con la base caída
+  saca la instancia; `make test-integration` y `make smoke` en verde.
 
 ## Fase 3 — Load Balancing
-- [ ] Quitar el puerto temporal 8082 de inventory en compose (impide escalar)
+- [x] Quitar el puerto temporal 8082 de inventory (ahora efímero; hecho en la Fase 2)
 - [ ] `docker compose up --scale inventory=3`; instance ID = hostname/UUID en `Diagnose`
-- [ ] Endpoint `POST /api/orders/lab/lb {n}` → distribución por instancia
+- [x] Endpoint `POST /api/orders/lab/lb {count}` → distribución por instancia (hecho en la Fase 2)
 - [ ] Selector configurable (wrr por defecto, p2c, random); requiere reinicio
 - [ ] Script `scripts/lab/loadbalancing.sh` (incluye caída de una réplica)
 - **Aceptación:** distribución visible en las 3 réplicas; al caer una, el tráfico se redistribuye sin errores sostenidos.

@@ -1,11 +1,12 @@
 # Go Microservices Lab — plataforma local.
 #
 # Fase 1: PostgreSQL + Inventory + Orders.
+# Fase 2: Consul (registro, descubrimiento y health checks).
 # Las credenciales se leen de .env (ver .env.example).
 #
-# Nota de la Fase 1: los puertos HTTP de los servicios se publican en
-# 127.0.0.1 de forma temporal para poder probarlos. Desaparecen cuando llegue
-# Traefik (Fase 7), y el de inventory antes, en la Fase 3, para poder escalarlo.
+# Nota: los puertos HTTP de los servicios se publican en 127.0.0.1 de forma
+# temporal para poder probarlos; desaparecen cuando llegue Traefik (Fase 7).
+# Inventory usa un puerto efímero para poder escalarlo (--scale inventory=N).
 
 name: go-microservices-lab
 
@@ -13,6 +14,12 @@ x-service-defaults: &service-defaults
   restart: unless-stopped
   stop_grace_period: 15s
   networks: [lab]
+
+# Variables comunes de registro en Consul.
+x-consul-env: &consul-env
+  APP_CONSUL_ADDR: consul:8500
+  APP_CONSUL_HEALTH_INTERVAL: 5s
+  APP_CONSUL_DEREGISTER_AFTER: 1m
 
 services:
   postgres:
@@ -35,6 +42,22 @@ services:
       retries: 20
     networks: [lab]
 
+  consul:
+    image: hashicorp/consul:2.0.4
+    restart: unless-stopped
+    command: ["agent"]
+    volumes:
+      - consuldata:/consul/data
+      - ./deployments/consul/server.hcl:/consul/config/server.hcl:ro
+    ports:
+      - "127.0.0.1:8500:8500" # UI y API de Consul
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://127.0.0.1:8500/v1/status/leader | grep -q ':'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [lab]
+
   inventory:
     <<: *service-defaults
     build:
@@ -42,13 +65,19 @@ services:
       dockerfile: services/inventory/Dockerfile
     image: go-microservices-lab/inventory:dev
     environment:
+      <<: *consul-env
       APP_DB_DSN: postgres://inventory:${INVENTORY_DB_PASSWORD}@postgres:5432/inventory?sslmode=disable
       APP_LOG_LEVEL: info
     depends_on:
       postgres:
         condition: service_healthy
+      consul:
+        condition: service_healthy
+    # Sin puerto fijo para poder escalar: cada réplica publica su HTTP en un
+    # puerto efímero de 127.0.0.1 (`docker compose port --index N inventory 8000`).
+    # Temporal hasta que Traefik sea el punto de entrada (Fase 7).
     ports:
-      - "127.0.0.1:8082:8000" # temporal (Fase 1)
+      - "127.0.0.1::8000"
 
   orders:
     <<: *service-defaults
@@ -57,20 +86,22 @@ services:
       dockerfile: services/orders/Dockerfile
     image: go-microservices-lab/orders:dev
     environment:
+      <<: *consul-env
       APP_DB_DSN: postgres://orders:${ORDERS_DB_PASSWORD}@postgres:5432/orders?sslmode=disable
-      # Temporal (Fase 1): dirección fija. En la Fase 2 se usa Consul.
-      APP_INVENTORY_ENDPOINT: inventory:9000
+      # Nombre lógico: el cliente gRPC resuelve las instancias a través de Consul.
+      APP_INVENTORY_ENDPOINT: discovery:///inventory-service
       APP_LOG_LEVEL: info
     depends_on:
       postgres:
         condition: service_healthy
-      inventory:
+      consul:
         condition: service_healthy
     ports:
       - "127.0.0.1:8081:8000" # temporal (Fase 1)
 
 volumes:
   pgdata:
+  consuldata:
 
 networks:
   lab:

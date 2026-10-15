@@ -13,6 +13,27 @@ Entrada por sesión, la más reciente arriba. Plantilla:
 
 ---
 
+## Sesión 1 (continuación 2) — 2026-10-15 — Fase 2
+**Hecho:** Consul 2.0.4 en compose; `pkg/discovery` (registry + check de readiness + Setup); registro en
+ambos servicios; Orders con `discovery:///inventory-service`; `orders.v1.LabService` (ProbeInventory);
+Inventory con puerto efímero; `scripts/lab/lib.sh` + `scripts/lab/discovery.sh`; pruebas contra Consul;
+docs/fases/fase-2.md.
+**Verificación:**
+- `make vet` OK; `make test-integration`: 6 paquetes ok (incluye 5 tests de pkg/discovery).
+- `make lab-discovery` con MODE=pause, kill y stop: 10 OK / 0 FAIL en cada uno.
+- Manual: con postgres detenido, inventory sigue healthy pero /readyz=503 y Consul lo excluye en ~1s
+  (vuelve en ~4s); con todas las instancias caídas, 503 inmediato y pedido REJECTED; recuperación en ~1s.
+- `make smoke`: 17/17 a través de discovery.
+**Decisiones:** ADR-015 (registro y descubrimiento), ADR-016 (LabService adelantado, puerto efímero); ADR-006 aceptada.
+**Problemas encontrados:**
+- El contrib no publica la lista vacía (documentado).
+- Consul 2.0 deja `Output` vacío en los checks HTTP con conexión rechazada → la prueba negativa espera varios intervalos.
+- El curl de snap no lee /tmp.
+- Dependencia circular registry ↔ cliente gRPC ↔ servidor HTTP → se crea primero el servidor HTTP.
+**Siguiente:** Fase 3 (Load Balancing).
+
+---
+
 ## Sesión 1 (continuación) — 2026-10-15 — Fase 1
 **Hecho:** module path `github.com/franbenaglia/go-microservices-lab` y remoto `origin`; gobreaker v2
 aceptado (ADR-002). Fase 1 completa: contratos proto, pkg común, Inventory, Orders, migraciones,

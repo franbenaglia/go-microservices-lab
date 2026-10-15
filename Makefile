@@ -30,9 +30,9 @@ test: ## Pruebas unitarias (las de integración se omiten sin base de datos)
 	go test -race -count=1 ./...
 
 .PHONY: test-integration
-test-integration: ## Pruebas unitarias + integración contra el PostgreSQL de compose
-	$(COMPOSE) up -d --wait postgres
-	LAB_TEST_PG_DSN='$(TEST_DSN)' go test -race -count=1 ./...
+test-integration: ## Pruebas unitarias + integración contra PostgreSQL y Consul de compose
+	$(COMPOSE) up -d --wait postgres consul
+	LAB_TEST_PG_DSN='$(TEST_DSN)' LAB_TEST_CONSUL_ADDR=127.0.0.1:8500 go test -race -count=1 ./...
 
 .PHONY: up
 up: ## Construye e inicia la plataforma
@@ -53,6 +53,10 @@ ps: ## Estado de los contenedores
 .PHONY: logs
 logs: ## Logs de todos los servicios (make logs S=orders para uno)
 	$(COMPOSE) logs -f --tail=100 $(S)
+
+.PHONY: lab-discovery
+lab-discovery: ## Escenarios de Service Discovery (MODE=pause|kill|stop)
+	./scripts/lab/discovery.sh
 
 .PHONY: smoke
 smoke: ## Prueba de humo de la Fase 1 contra la plataforma en marcha

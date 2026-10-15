@@ -5,14 +5,16 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/franbenaglia/go-microservices-lab/pkg/discovery"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
 )
 
 // Config es la configuración completa del servicio.
 type Config struct {
-	Server Server `json:"server"`
-	Data   Data   `json:"data"`
-	Log    Log    `json:"log"`
+	Server Server           `json:"server"`
+	Data   Data             `json:"data"`
+	Log    Log              `json:"log"`
+	Consul discovery.Config `json:"consul"`
 }
 
 // Server agrupa los servidores HTTP y gRPC.
@@ -50,6 +52,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Data.DSN == "" {
 		errs = append(errs, fmt.Errorf("data.dsn vacío: definir %sDB_DSN", platform.EnvPrefix))
+	}
+	if err := c.Consul.Validate(); err != nil {
+		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
 }

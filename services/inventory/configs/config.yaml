@@ -14,3 +14,8 @@ data:
   auto_migrate: "${DB_AUTO_MIGRATE:true}"
 log:
   level: "${LOG_LEVEL:info}"
+consul:
+  # Vacío desactiva el registro (útil para ejecutar el servicio sin Consul).
+  address: "${CONSUL_ADDR:}"
+  health_interval: "${CONSUL_HEALTH_INTERVAL:5s}"
+  deregister_after: "${CONSUL_DEREGISTER_AFTER:1m}"

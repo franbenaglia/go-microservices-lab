@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+// Endpoints de laboratorio de Orders: diagnóstico del balanceo del lado
+// cliente (Orders -> Inventory por gRPC). No contienen lógica de negocio.
+package orders.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1;ordersv1";
+
+service LabService {
+  // ProbeInventory hace `count` llamadas consecutivas a Inventory.Diagnose a
+  // través del cliente gRPC con descubrimiento y devuelve qué instancia atendió
+  // cada una. Así se ve el balanceo interno (no el de Traefik).
+  rpc ProbeInventory(ProbeInventoryRequest) returns (ProbeInventoryResponse) {
+    option (google.api.http) = {
+      post: "/api/orders/lab/lb"
+      body: "*"
+    };
+  }
+}
+
+message ProbeInventoryRequest {
+  // Número de llamadas (1..1000, por defecto 20).
+  int32 count = 1;
+  // Pausa entre llamadas en milisegundos (0..1000).
+  int32 interval_ms = 2;
+}
+
+message InstanceCount {
+  string instance_id = 1;
+  int32 count = 2;
+}
+
+message ErrorCount {
+  string reason = 1;
+  int32 count = 2;
+}
+
+message ProbeInventoryResponse {
+  int32 total = 1;
+  int32 succeeded = 2;
+  int32 failed = 3;
+  // Distribución de respuestas satisfactorias por instancia (orden por ID).
+  repeated InstanceCount by_instance = 4;
+  // Errores agrupados por razón o código.
+  repeated ErrorCount errors = 5;
+  double avg_latency_ms = 6;
+  double max_latency_ms = 7;
+  // Instancia que atendió cada llamada, en orden ("" si falló).
+  repeated string sequence = 8;
+}

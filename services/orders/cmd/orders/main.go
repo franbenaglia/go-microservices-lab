@@ -12,9 +12,12 @@ import (
 
 	"github.com/go-kratos/kratos/v3"
 	klog "github.com/go-kratos/kratos/v3/log"
+	"github.com/go-kratos/kratos/v3/registry"
 	"github.com/google/uuid"
 
 	inventoryv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/inventory/v1"
+	ordersv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1"
+	"github.com/franbenaglia/go-microservices-lab/pkg/discovery"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
 	"github.com/franbenaglia/go-microservices-lab/pkg/postgres"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/biz"
@@ -82,33 +85,48 @@ func run() error {
 		logger.Info("migraciones aplicadas")
 	}
 
-	conn, err := server.NewInventoryConn(context.Background(), cfg.Inventory, logger)
-	if err != nil {
-		return fmt.Errorf("cliente de inventory: %w", err)
-	}
-	defer conn.Close()
-
 	// Readiness solo depende de la base de datos propia: si Inventory cae,
 	// Orders sigue atendiendo (rechaza pedidos de forma controlada) en lugar
 	// de desaparecer del balanceo.
 	health := platform.NewHealth(2 * time.Second)
 	health.AddReadinessCheck("postgres", func(ctx context.Context) error { return pool.Ping(ctx) })
 
+	// El servidor HTTP se crea antes que el resto para conocer su endpoint:
+	// el registry de Consul lo necesita para el check de readiness y, a la
+	// vez, el cliente gRPC necesita el registry para descubrir Inventory.
+	httpSrv := server.NewHTTPServer(cfg.Server.HTTP, health, logger)
+	regOpts, reg, err := discovery.Setup(cfg.Consul, httpSrv)
+	if err != nil {
+		return err
+	}
+	var disc registry.Discovery // nil explícito si no hay Consul (evita interfaz con puntero nil)
+	if reg != nil {
+		disc = reg
+	}
+	conn, err := server.NewInventoryConn(context.Background(), cfg.Inventory, disc, logger)
+	if err != nil {
+		return fmt.Errorf("cliente de inventory: %w", err)
+	}
+	defer conn.Close()
+
 	newID := func() (string, error) {
 		u, err := uuid.NewV7()
 		return u.String(), err
 	}
-	inv := data.NewInventoryClient(inventoryv1.NewInventoryServiceClient(conn))
+	invClient := inventoryv1.NewInventoryServiceClient(conn)
+	inv := data.NewInventoryClient(invClient)
 	uc := biz.NewOrderUsecase(data.NewOrderRepo(pool), inv, newID, cfg.Inventory.CompensationTimeout.Std())
 	svc := service.NewOrdersService(uc, logger)
-	httpSrv := server.NewHTTPServer(cfg.Server.HTTP, svc, health, logger)
+	ordersv1.RegisterOrdersServiceHTTPServer(httpSrv, svc)
+	lab := service.NewLabService(invClient)
+	ordersv1.RegisterLabServiceHTTPServer(httpSrv, lab)
 	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger)
 
-	app := kratos.New(
+	app := kratos.New(append(regOpts,
 		kratos.ID(id.Instance),
 		kratos.Name(id.Service),
 		kratos.Version(id.Version),
-		kratos.Metadata(map[string]string{"instance": id.Instance}),
+		kratos.Metadata(map[string]string{"instance": id.Instance, "hostname": platform.Hostname()}),
 		kratos.Logger(logger),
 		kratos.Server(httpSrv, grpcSrv),
 		kratos.BeforeStop(func(context.Context) error {
@@ -116,10 +134,11 @@ func run() error {
 			logger.Info("apagando: instancia marcada como no preparada")
 			return nil
 		}),
-	)
+	)...)
 	logger.Info("arrancando",
 		slog.String("http", cfg.Server.HTTP.Addr),
 		slog.String("grpc", cfg.Server.GRPC.Addr),
-		slog.String("inventory", cfg.Inventory.Endpoint))
+		slog.String("inventory", cfg.Inventory.Endpoint),
+		slog.Bool("consul", cfg.Consul.Enabled()))
 	return app.Run()
 }

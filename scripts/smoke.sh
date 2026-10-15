@@ -3,12 +3,12 @@
 # plataforma en marcha (make up) e informa de cada comprobación.
 #
 # Variables: ORDERS_URL (por defecto http://127.0.0.1:8081)
-#            INVENTORY_URL (por defecto http://127.0.0.1:8082)
+#            INVENTORY_URL (por defecto, el puerto efímero de la réplica 1)
 # Requiere: curl, jq.
 set -euo pipefail
 
 ORDERS_URL=${ORDERS_URL:-http://127.0.0.1:8081}
-INVENTORY_URL=${INVENTORY_URL:-http://127.0.0.1:8082}
+INVENTORY_URL=${INVENTORY_URL:-http://$(docker compose port --index 1 inventory 8000)}
 JSON=(-H 'Content-Type: application/json')
 pass=0 fail=0
 

@@ -54,7 +54,7 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
 - **Alternativa:** el provider Docker, que requiere montar `/var/run/docker.sock`.
 
 ## ADR-006 — Health checks y readiness
-**Estado:** Parcial: `/livez` y `/readyz` implementados en la Fase 1; falta integrarlos con Consul (Fase 2)
+**Estado:** Aceptada e implementada (Fases 1–2). Consul registra los checks TTL, TCP y HTTP `/readyz`; Docker usa `/livez`
 - **Decisión:** endpoints HTTP `/livez` (proceso vivo) y `/readyz` (ping a la base de datos y
   dependencias críticas), además de `grpc.health.v1` (lo trae Kratos). En Consul, el check HTTP
   sobre `/readyz` se registra con `WithServiceCheck` y `WithDeregisterCriticalServiceAfter`.
@@ -132,3 +132,25 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
   lo borra al terminar. Las pruebas se omiten si no existe `LAB_TEST_PG_DSN`, así que `make test`
   funciona sin Docker y `make test-integration` usa el PostgreSQL de compose (base `labtest`).
   No se usa testcontainers, para no añadir dependencias.
+
+## ADR-015 — Registro y descubrimiento en Consul
+**Estado:** Aceptada (2026-10-15, Fase 2)
+- **Decisión:** `pkg/discovery.Setup` crea el registry de `contrib/registry/consul/v3` con heartbeat
+  TTL, checks TCP (los añade el contrib) y un check HTTP `readiness` sobre `/readyz` de la IP real
+  de la instancia. `health_interval=5s` y `deregister_after=1m` (mínimo de Consul). El mismo registry
+  sirve como Registrar (registro propio) y Discovery (cliente gRPC de Orders).
+- **Orden de construcción:** el servidor HTTP se crea primero (solo con salud), porque el registry
+  necesita su endpoint y el cliente gRPC necesita el registry. Las APIs se registran después.
+- **Consul 2.0.4** en modo servidor con volumen (no `-dev`). Sin ACLs ni TLS (laboratorio local).
+- **Alternativas:** un check gRPC de Consul (`grpc.health.v1`). Se descarta porque Kratos marca
+  SERVING al arrancar y no refleja las dependencias; `/readyz` sí.
+- **Limitación del contrib:** no publica la lista vacía cuando todas las instancias caen (ver docs/fases/fase-2.md).
+
+## ADR-016 — Endpoint de diagnóstico de balanceo en Orders
+**Estado:** Aceptada (2026-10-15, adelantada a la Fase 2)
+- `orders.v1.LabService/ProbeInventory` (`POST /api/orders/lab/lb`) hace N llamadas `Diagnose`
+  consecutivas con el **mismo** cliente gRPC de negocio y devuelve la distribución, los errores, las
+  latencias y la secuencia. Se adelantó porque la prueba del §5 necesita ver qué instancia atiende.
+- Vive en `internal/service/lab.go`, fuera del dominio. En la Fase 4 se restringirá a modo laboratorio.
+- **Puerto de Inventory en el host:** efímero (`127.0.0.1::8000`) para poder escalar. Los scripts lo
+  obtienen con `docker compose port --index N inventory 8000`.
