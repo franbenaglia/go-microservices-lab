@@ -1,0 +1,76 @@
+# Go Microservices Lab — plataforma local.
+#
+# Fase 1: PostgreSQL + Inventory + Orders.
+# Las credenciales se leen de .env (ver .env.example).
+#
+# Nota de la Fase 1: los puertos HTTP de los servicios se publican en
+# 127.0.0.1 de forma temporal para poder probarlos. Desaparecen cuando llegue
+# Traefik (Fase 7), y el de inventory antes, en la Fase 3, para poder escalarlo.
+
+name: go-microservices-lab
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  stop_grace_period: 15s
+  networks: [lab]
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD en .env}
+      INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD:?definir INVENTORY_DB_PASSWORD en .env}
+      ORDERS_DB_PASSWORD: ${ORDERS_DB_PASSWORD:?definir ORDERS_DB_PASSWORD en .env}
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./deployments/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:${PG_HOST_PORT:-55432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [lab]
+
+  inventory:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: services/inventory/Dockerfile
+    image: go-microservices-lab/inventory:dev
+    environment:
+      APP_DB_DSN: postgres://inventory:${INVENTORY_DB_PASSWORD}@postgres:5432/inventory?sslmode=disable
+      APP_LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8082:8000" # temporal (Fase 1)
+
+  orders:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: services/orders/Dockerfile
+    image: go-microservices-lab/orders:dev
+    environment:
+      APP_DB_DSN: postgres://orders:${ORDERS_DB_PASSWORD}@postgres:5432/orders?sslmode=disable
+      # Temporal (Fase 1): dirección fija. En la Fase 2 se usa Consul.
+      APP_INVENTORY_ENDPOINT: inventory:9000
+      APP_LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8081:8000" # temporal (Fase 1)
+
+volumes:
+  pgdata:
+
+networks:
+  lab:

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package inventory.v1;
+
+import "errors/errors.proto";
+
+option go_package = "github.com/franbenaglia/go-microservices-lab/api/gen/go/inventory/v1;inventoryv1";
+
+// Razones de error de negocio de Inventory. El generador de Kratos crea
+// helpers Error<Reason>() / Is<Reason>() y el código HTTP se traduce a gRPC.
+enum ErrorReason {
+  option (errors.default_code) = 500;
+
+  UNSPECIFIED = 0;
+  INVALID_ARGUMENT = 1 [(errors.code) = 400];
+  PRODUCT_NOT_FOUND = 2 [(errors.code) = 404];
+  SKU_ALREADY_EXISTS = 3 [(errors.code) = 409];
+  INSUFFICIENT_STOCK = 4 [(errors.code) = 409];
+  RESERVATION_NOT_FOUND = 5 [(errors.code) = 404];
+  IDEMPOTENCY_KEY_CONFLICT = 6 [(errors.code) = 409];
+}

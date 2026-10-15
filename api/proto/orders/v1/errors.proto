@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package orders.v1;
+
+import "errors/errors.proto";
+
+option go_package = "github.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1;ordersv1";
+
+enum ErrorReason {
+  option (errors.default_code) = 500;
+
+  UNSPECIFIED = 0;
+  INVALID_ARGUMENT = 1 [(errors.code) = 400];
+  ORDER_NOT_FOUND = 2 [(errors.code) = 404];
+  INVALID_TRANSITION = 3 [(errors.code) = 409];
+  // Inventory no respondió o no hay instancias disponibles.
+  INVENTORY_UNAVAILABLE = 4 [(errors.code) = 503];
+}

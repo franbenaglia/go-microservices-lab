@@ -1,0 +1,20 @@
+# Configuración de arranque de Orders. Los placeholders ${CLAVE:default} se
+# resuelven con variables de entorno APP_<CLAVE> (p. ej. APP_DB_DSN).
+# Las credenciales nunca se escriben aquí.
+server:
+  http:
+    addr: "${HTTP_ADDR:0.0.0.0:8000}"
+    timeout: "${HTTP_TIMEOUT:10s}"
+  grpc:
+    addr: "${GRPC_ADDR:0.0.0.0:9000}"
+    timeout: "${GRPC_TIMEOUT:10s}"
+data:
+  dsn: "${DB_DSN:}"
+  max_conns: 10
+  auto_migrate: "${DB_AUTO_MIGRATE:true}"
+inventory:
+  endpoint: "${INVENTORY_ENDPOINT:inventory:9000}"
+  timeout: "${INVENTORY_TIMEOUT:2s}"
+  compensation_timeout: "${INVENTORY_COMPENSATION_TIMEOUT:2s}"
+log:
+  level: "${LOG_LEVEL:info}"

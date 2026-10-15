@@ -1,0 +1,26 @@
+# Workspace de buf: contratos propios + protos de terceros copiados de Kratos v3.
+version: v2
+modules:
+  - path: api/proto
+  - path: api/third_party
+lint:
+  use:
+    - STANDARD
+  # Se devuelven recursos (Product, Order) directamente, al estilo de las APIs de Google/Kratos.
+  except:
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+  ignore:
+    - api/third_party
+  # Convención de Kratos para enums de error: valores sin prefijo -> helpers ErrorProductNotFound().
+  ignore_only:
+    ENUM_VALUE_PREFIX:
+      - api/proto/inventory/v1/errors.proto
+      - api/proto/orders/v1/errors.proto
+    ENUM_ZERO_VALUE_SUFFIX:
+      - api/proto/inventory/v1/errors.proto
+      - api/proto/orders/v1/errors.proto
+breaking:
+  use:
+    - FILE

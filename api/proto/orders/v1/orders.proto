@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+// Contrato v1 de Orders Service (público vía HTTP a través de Traefik).
+package orders.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1;ordersv1";
+
+service OrdersService {
+  rpc CreateOrder(CreateOrderRequest) returns (Order) {
+    option (google.api.http) = {
+      post: "/api/orders"
+      body: "*"
+    };
+  }
+
+  rpc GetOrder(GetOrderRequest) returns (Order) {
+    option (google.api.http) = {get: "/api/orders/{id}"};
+  }
+
+  rpc GetOrderStatus(GetOrderRequest) returns (OrderStatusResponse) {
+    option (google.api.http) = {get: "/api/orders/{id}/status"};
+  }
+
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse) {
+    option (google.api.http) = {get: "/api/orders"};
+  }
+
+  rpc CancelOrder(CancelOrderRequest) returns (Order) {
+    option (google.api.http) = {
+      post: "/api/orders/{id}/cancel"
+      body: "*"
+    };
+  }
+}
+
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_PENDING = 1;
+  ORDER_STATUS_CONFIRMED = 2;
+  ORDER_STATUS_REJECTED = 3;
+  ORDER_STATUS_CANCELLED = 4;
+}
+
+message OrderItem {
+  string product_id = 1;
+  string sku = 2;
+  string name = 3;
+  int32 quantity = 4;
+  int64 unit_price_cents = 5;
+  int64 subtotal_cents = 6;
+}
+
+message Order {
+  string id = 1;
+  OrderStatus status = 2;
+  repeated OrderItem items = 3;
+  int64 total_cents = 4;
+  // Motivo legible cuando el estado es REJECTED.
+  string rejection_reason = 5;
+  string reservation_id = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  // Código estable del rechazo: INSUFFICIENT_STOCK, PRODUCT_NOT_FOUND,
+  // INVENTORY_UNAVAILABLE. Vacío si no fue rechazado.
+  string rejection_code = 9;
+}
+
+message CreateOrderItem {
+  string product_id = 1;
+  int32 quantity = 2;
+}
+
+message CreateOrderRequest {
+  repeated CreateOrderItem items = 1;
+}
+
+message GetOrderRequest {
+  string id = 1;
+}
+
+message OrderStatusResponse {
+  string id = 1;
+  OrderStatus status = 2;
+  string rejection_reason = 3;
+  string rejection_code = 4;
+}
+
+message ListOrdersRequest {
+  // Filtro opcional por estado.
+  OrderStatus status = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message ListOrdersResponse {
+  repeated Order orders = 1;
+}
+
+message CancelOrderRequest {
+  string id = 1;
+}

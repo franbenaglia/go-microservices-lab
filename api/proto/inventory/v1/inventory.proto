@@ -1,0 +1,174 @@
+syntax = "proto3";
+
+// Contrato v1 de Inventory Service.
+//
+// Las operaciones con anotación HTTP se publican a través de Traefik
+// (/api/products, /api/inventory). Las que no la tienen (ReserveStock,
+// ReleaseStock) son exclusivamente internas y solo se consumen por gRPC.
+package inventory.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/franbenaglia/go-microservices-lab/api/gen/go/inventory/v1;inventoryv1";
+
+service InventoryService {
+  // --- Gestión de productos (pública vía HTTP y gRPC) ---
+
+  rpc CreateProduct(CreateProductRequest) returns (Product) {
+    option (google.api.http) = {
+      post: "/api/products"
+      body: "*"
+    };
+  }
+
+  rpc UpdateProduct(UpdateProductRequest) returns (Product) {
+    option (google.api.http) = {
+      put: "/api/products/{id}"
+      body: "*"
+    };
+  }
+
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse) {
+    option (google.api.http) = {get: "/api/products"};
+  }
+
+  // GetProduct es idempotente y se puede reintentar.
+  rpc GetProduct(GetProductRequest) returns (Product) {
+    option (google.api.http) = {get: "/api/products/{id}"};
+  }
+
+  // AdjustStock incrementa (delta > 0) o reduce (delta < 0) el stock disponible.
+  rpc AdjustStock(AdjustStockRequest) returns (Product) {
+    option (google.api.http) = {
+      post: "/api/inventory/{product_id}/adjust"
+      body: "*"
+    };
+  }
+
+  // CheckAvailability es de solo lectura y se puede reintentar.
+  rpc CheckAvailability(CheckAvailabilityRequest) returns (CheckAvailabilityResponse) {
+    option (google.api.http) = {
+      post: "/api/inventory/availability"
+      body: "*"
+    };
+  }
+
+  // --- Operaciones internas (solo gRPC) ---
+
+  // ReserveStock reserva todas las líneas de forma atómica (todo o nada).
+  // La misma idempotency_key devuelve siempre la misma reserva, por lo que
+  // es seguro reintentarla.
+  rpc ReserveStock(ReserveStockRequest) returns (ReserveStockResponse);
+
+  // ReleaseStock devuelve al stock disponible las unidades de una reserva.
+  // Liberar una reserva ya liberada no tiene efecto (idempotente).
+  rpc ReleaseStock(ReleaseStockRequest) returns (ReleaseStockResponse);
+
+  // Diagnose informa qué instancia atendió la solicitud (laboratorio de balanceo).
+  rpc Diagnose(DiagnoseRequest) returns (DiagnoseResponse) {
+    option (google.api.http) = {get: "/api/inventory/diagnose"};
+  }
+}
+
+// Los importes se expresan en céntimos (enteros) para evitar errores de coma flotante.
+message Product {
+  string id = 1;
+  string sku = 2;
+  string name = 3;
+  string description = 4;
+  int64 price_cents = 5;
+  int32 available = 6;
+  int32 reserved = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message CreateProductRequest {
+  string sku = 1;
+  string name = 2;
+  string description = 3;
+  int64 price_cents = 4;
+  int32 initial_stock = 5;
+}
+
+message UpdateProductRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int64 price_cents = 4;
+}
+
+message ListProductsRequest {
+  int32 limit = 1;
+  int32 offset = 2;
+}
+
+message ListProductsResponse {
+  repeated Product products = 1;
+}
+
+message GetProductRequest {
+  string id = 1;
+}
+
+message AdjustStockRequest {
+  string product_id = 1;
+  int32 delta = 2;
+}
+
+message StockLine {
+  string product_id = 1;
+  int32 quantity = 2;
+}
+
+message CheckAvailabilityRequest {
+  repeated StockLine items = 1;
+}
+
+message AvailabilityLine {
+  string product_id = 1;
+  int32 requested = 2;
+  int32 available = 3;
+  bool sufficient = 4;
+}
+
+message CheckAvailabilityResponse {
+  bool all_available = 1;
+  repeated AvailabilityLine items = 2;
+}
+
+message ReserveStockRequest {
+  // Clave única por operación lógica (Orders usa el ID del pedido).
+  string idempotency_key = 1;
+  repeated StockLine items = 2;
+}
+
+message ReserveStockResponse {
+  string reservation_id = 1;
+  // true si la reserva ya existía para esa clave (reintento detectado).
+  bool replayed = 2;
+}
+
+message ReleaseStockRequest {
+  oneof target {
+    string reservation_id = 1;
+    string idempotency_key = 2;
+  }
+}
+
+message ReleaseStockResponse {
+  string reservation_id = 1;
+  // true si la reserva ya estaba liberada.
+  bool already_released = 2;
+}
+
+message DiagnoseRequest {}
+
+message DiagnoseResponse {
+  string service = 1;
+  string instance_id = 2;
+  string hostname = 3;
+  string version = 4;
+  google.protobuf.Timestamp time = 5;
+}

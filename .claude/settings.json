@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_PROJECT_DIR/docs/harness/PROGRESS.md\"; [ -f \"$f\" ] && { echo '=== Harness: estado actual del proyecto (docs/harness/PROGRESS.md) ==='; cat \"$f\"; }; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
