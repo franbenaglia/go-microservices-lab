@@ -17,9 +17,13 @@ var _ = new(context.Context)
 
 const _ = http.SupportPackageIsVersion3
 
+const OperationLabServiceGetResilience = "/orders.v1.LabService/GetResilience"
 const OperationLabServiceProbeInventory = "/orders.v1.LabService/ProbeInventory"
 
 type LabServiceHTTPServer interface {
+	// GetResilience GetResilience devuelve el estado del circuit breaker, los contadores de
+	// reintentos y la configuración de timeouts del cliente hacia Inventory.
+	GetResilience(context.Context, *GetResilienceRequest) (*ResilienceStatus, error)
 	// ProbeInventory ProbeInventory hace `count` llamadas consecutivas a Inventory.Diagnose a
 	// través del cliente gRPC con descubrimiento y devuelve qué instancia atendió
 	// cada una. Así se ve el balanceo interno (no el de Traefik).
@@ -29,6 +33,7 @@ type LabServiceHTTPServer interface {
 func RegisterLabServiceHTTPServer(s *http.Server, srv LabServiceHTTPServer) {
 	r := s.Route("/")
 	r.Handle("POST", "/api/orders/lab/lb", _LabService_ProbeInventory0_HTTP_Handler(srv))
+	r.Handle("GET", "/api/orders/lab/resilience", _LabService_GetResilience0_HTTP_Handler(srv))
 }
 
 func _LabService_ProbeInventory0_HTTP_Handler(srv LabServiceHTTPServer) func(ctx http.Context) error {
@@ -50,7 +55,29 @@ func _LabService_ProbeInventory0_HTTP_Handler(srv LabServiceHTTPServer) func(ctx
 	}
 }
 
+func _LabService_GetResilience0_HTTP_Handler(srv LabServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetResilienceRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationLabServiceGetResilience)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetResilience(ctx, req.(*GetResilienceRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ResilienceStatus)
+		return ctx.Result(200, reply)
+	}
+}
+
 type LabServiceHTTPClient interface {
+	// GetResilience GetResilience devuelve el estado del circuit breaker, los contadores de
+	// reintentos y la configuración de timeouts del cliente hacia Inventory.
+	GetResilience(ctx context.Context, req *GetResilienceRequest, opts ...http.CallOption) (rsp *ResilienceStatus, err error)
 	// ProbeInventory ProbeInventory hace `count` llamadas consecutivas a Inventory.Diagnose a
 	// través del cliente gRPC con descubrimiento y devuelve qué instancia atendió
 	// cada una. Así se ve el balanceo interno (no el de Traefik).
@@ -63,6 +90,24 @@ type LabServiceHTTPClientImpl struct {
 
 func NewLabServiceHTTPClient(client *http.Client) LabServiceHTTPClient {
 	return &LabServiceHTTPClientImpl{client}
+}
+
+// GetResilience GetResilience devuelve el estado del circuit breaker, los contadores de
+// reintentos y la configuración de timeouts del cliente hacia Inventory.
+func (c *LabServiceHTTPClientImpl) GetResilience(ctx context.Context, in *GetResilienceRequest, opts ...http.CallOption) (*ResilienceStatus, error) {
+	var out ResilienceStatus
+	pattern := "/api/orders/lab/resilience"
+	path := http.BuildPath(pattern, in, http.WithQueryParams())
+	opts = append([]http.CallOption{
+		http.Accept("application/protojson"),
+		http.Operation(OperationLabServiceGetResilience),
+		http.PathTemplate(pattern),
+	}, opts...)
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // ProbeInventory ProbeInventory hace `count` llamadas consecutivas a Inventory.Diagnose a

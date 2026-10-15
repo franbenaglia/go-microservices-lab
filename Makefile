@@ -62,6 +62,10 @@ lab-discovery: ## Escenarios de Service Discovery (MODE=pause|kill|stop)
 lab-lb: ## Escenarios de balanceo del lado cliente (MODE=stop|kill)
 	./scripts/lab/loadbalancing.sh
 
+.PHONY: lab-resilience
+lab-resilience: ## Escenarios de resiliencia: retries, breaker, timeouts (args: A B C D E)
+	./scripts/lab/resilience.sh $(ARGS)
+
 .PHONY: smoke
 smoke: ## Prueba de humo de la Fase 1 contra la plataforma en marcha
 	./scripts/smoke.sh

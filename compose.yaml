@@ -3,6 +3,7 @@
 # Fase 1: PostgreSQL + Inventory + Orders.
 # Fase 2: Consul (registro, descubrimiento y health checks).
 # Fase 3: balanceo del lado cliente (INVENTORY_BALANCER, --scale inventory=N).
+# Fase 4: resiliencia (BREAKER_*, RETRY_*) e inyección de fallos (LAB_MODE).
 # Las credenciales se leen de .env (ver .env.example).
 #
 # Nota: los puertos HTTP de los servicios se publican en 127.0.0.1 de forma
@@ -18,6 +19,8 @@ x-service-defaults: &service-defaults
 
 # Variables comunes de registro en Consul.
 x-consul-env: &consul-env
+  # Modo laboratorio: inyección de fallos y endpoints /admin y /lab.
+  LAB_MODE: ${LAB_MODE:-true}
   APP_CONSUL_ADDR: consul:8500
   APP_CONSUL_HEALTH_INTERVAL: 5s
   APP_CONSUL_DEREGISTER_AFTER: 1m
@@ -95,6 +98,10 @@ services:
       APP_INVENTORY_ENDPOINT: discovery:///inventory-service
       # Selector de balanceo del lado cliente: wrr | p2c | random.
       APP_INVENTORY_BALANCER: ${INVENTORY_BALANCER:-wrr}
+      # Resiliencia del cliente hacia Inventory (ver services/orders/configs/config.yaml).
+      APP_BREAKER_ENABLED: ${BREAKER_ENABLED:-true}
+      APP_BREAKER_KIND: ${BREAKER_KIND:-classic}
+      APP_RETRY_ENABLED: ${RETRY_ENABLED:-true}
       APP_LOG_LEVEL: info
     depends_on:
       postgres:

@@ -23,6 +23,7 @@ import (
 	ordersv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1"
 	"github.com/franbenaglia/go-microservices-lab/pkg/httpcodec"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
+
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/conf"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/service"
 )
@@ -94,14 +95,19 @@ func SetBalancer(name string) error {
 // Con un endpoint "discovery:///inventory-service", el resolver de Kratos
 // consulta Consul (disc) y mantiene la lista de instancias sanas; el balanceo
 // entre ellas lo hace el cliente (por defecto, weighted round robin).
-func NewInventoryConn(ctx context.Context, c conf.Inventory, disc registry.Discovery, logger *slog.Logger) (*ggrpc.ClientConn, error) {
+//
+// Orden de los middlewares (de fuera hacia dentro):
+//
+//	metadata → logging → [resiliencia: retry → circuit breaker] → invocación gRPC
+//
+// El timeout de Kratos (WithTimeout) envuelve toda la cadena: es el
+// presupuesto total de la llamada, reintentos incluidos.
+func NewInventoryConn(ctx context.Context, c conf.Inventory, disc registry.Discovery, logger *slog.Logger, resilience ...middleware.Middleware) (*ggrpc.ClientConn, error) {
+	mws := append([]middleware.Middleware{metadata.Client(), logging.Client(logger)}, resilience...)
 	opts := []grpc.ClientOption{
 		grpc.WithEndpoint(c.Endpoint),
 		grpc.WithTimeout(c.Timeout.Std()),
-		grpc.WithMiddleware(
-			metadata.Client(),
-			logging.Client(logger),
-		),
+		grpc.WithMiddleware(mws...),
 	}
 	if disc != nil {
 		opts = append(opts, grpc.WithDiscovery(disc))

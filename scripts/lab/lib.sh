@@ -13,7 +13,7 @@ check() { # check "descripción" obtenido esperado
   if [[ "$2" == "$3" ]]; then
     printf '  \e[32mOK\e[0m   %s (%s)\n' "$1" "$2"; pass=$((pass + 1))
   else
-    printf '  \e[31mFAIL\e[0m %s: obtenido=%q esperado=%q\n' "$1" "$2" "$3"; fail=$((fail + 1))
+    printf '  \e[31mFAIL\e[0m %s: obtenido=[%s] esperado=[%s]\n' "$1" "$2" "$3"; fail=$((fail + 1))
   fi
 }
 
@@ -71,3 +71,48 @@ instance_id_of() { # instance_id_of contenedor -> ID registrado en Consul
   curl -s "$CONSUL_URL/v1/health/service/inventory-service" |
     jq -r --arg h "$host" '.[] | select(.Service.Meta.hostname == $h) | .Service.ID'
 }
+
+# --- Fase 4: inyección de fallos y resiliencia ---
+
+inventory_urls() { # URL HTTP de cada réplica de inventory
+  local n i
+  n=$(docker compose ps inventory -q | wc -l)
+  for ((i = 1; i <= n; i++)); do echo "http://$(docker compose port --index "$i" inventory 8000)"; done
+}
+
+set_faults() { # set_faults JSON [índice]  (sin índice: todas las réplicas)
+  local url
+  if [[ -n ${2:-} ]]; then
+    url="http://$(docker compose port --index "$2" inventory 8000)"
+    curl -sf -X PUT "$url/admin/faults" --data-binary @- <<<"$1" >/dev/null
+  else
+    for url in $(inventory_urls); do curl -sf -X PUT "$url/admin/faults" --data-binary @- <<<"$1" >/dev/null; done
+  fi
+}
+
+clear_faults() {
+  local url
+  for url in $(inventory_urls); do curl -sf -X DELETE "$url/admin/faults" >/dev/null; done
+}
+
+resilience() { curl -s "$ORDERS_URL/api/orders/lab/resilience"; }
+breaker_state() { resilience | jq -r .breaker.state; }
+
+# Recrea Orders con otras variables (siempre: así el breaker y los contadores
+# empiezan de cero), p. ej.: orders_with BREAKER_ENABLED=false RETRY_ENABLED=true
+orders_with() {
+  env "$@" docker compose up -d --wait --force-recreate orders >/dev/null 2>&1
+}
+
+injected_total() { # errores inyectados acumulados en todas las réplicas (peticiones que llegaron)
+  local url t=0 n
+  for url in $(inventory_urls); do n=$(curl -s "$url/admin/faults" | jq .injected_errors); t=$((t + n)); done
+  echo $t
+}
+
+probe_interval() { # probe_interval N ms
+  curl -s -H 'Content-Type: application/json' -X POST "$ORDERS_URL/api/orders/lab/lb" \
+    -d "{\"count\":$1,\"interval_ms\":$2}"
+}
+
+fail_pct() { jq '(.failed * 100 / .total) | floor' <<<"$1"; }

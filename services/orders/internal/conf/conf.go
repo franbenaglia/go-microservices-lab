@@ -12,11 +12,41 @@ import (
 
 // Config es la configuración completa del servicio.
 type Config struct {
-	Server    Server           `json:"server"`
-	Data      Data             `json:"data"`
-	Inventory Inventory        `json:"inventory"`
-	Log       Log              `json:"log"`
-	Consul    discovery.Config `json:"consul"`
+	Server     Server           `json:"server"`
+	Data       Data             `json:"data"`
+	Inventory  Inventory        `json:"inventory"`
+	Log        Log              `json:"log"`
+	Consul     discovery.Config `json:"consul"`
+	Resilience Resilience       `json:"resilience"`
+}
+
+// Resilience configura el circuit breaker y los reintentos hacia Inventory.
+type Resilience struct {
+	Breaker Breaker `json:"breaker"`
+	Retry   Retry   `json:"retry"`
+}
+
+// Breaker configura el circuit breaker (ver pkg/resilience/breaker).
+type Breaker struct {
+	Enabled             bool              `json:"enabled"`
+	Kind                string            `json:"kind"` // classic | sre
+	FailureRatio        float64           `json:"failure_ratio"`
+	MinRequests         uint32            `json:"min_requests"`
+	ConsecutiveFailures uint32            `json:"consecutive_failures"`
+	Window              platform.Duration `json:"window"`
+	OpenTimeout         platform.Duration `json:"open_timeout"`
+	HalfOpenMaxRequests uint32            `json:"half_open_max_requests"`
+}
+
+// Retry configura los reintentos (ver pkg/resilience/retry).
+type Retry struct {
+	Enabled        bool              `json:"enabled"`
+	MaxAttempts    int               `json:"max_attempts"`
+	BaseBackoff    platform.Duration `json:"base_backoff"`
+	MaxBackoff     platform.Duration `json:"max_backoff"`
+	AttemptTimeout platform.Duration `json:"attempt_timeout"`
+	Idempotent     []string          `json:"idempotent_operations"`
+	KeyRequired    []string          `json:"key_required_operations"`
 }
 
 // Server agrupa los servidores HTTP y gRPC.
@@ -82,6 +112,12 @@ func (c *Config) Validate() error {
 	}
 	if c.Inventory.Timeout.Std() <= 0 {
 		errs = append(errs, errors.New("inventory.timeout debe ser positivo"))
+	}
+	if k := c.Resilience.Breaker.Kind; c.Resilience.Breaker.Enabled && k != "classic" && k != "sre" {
+		errs = append(errs, fmt.Errorf("resilience.breaker.kind %q inválido (classic, sre)", k))
+	}
+	if r := c.Resilience.Retry; r.Enabled && r.AttemptTimeout.Std() >= c.Inventory.Timeout.Std() {
+		errs = append(errs, errors.New("resilience.retry.attempt_timeout debe ser menor que inventory.timeout"))
 	}
 	if err := c.Consul.Validate(); err != nil {
 		errs = append(errs, err)

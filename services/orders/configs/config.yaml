@@ -14,6 +14,7 @@ data:
   auto_migrate: "${DB_AUTO_MIGRATE:true}"
 inventory:
   endpoint: "${INVENTORY_ENDPOINT:discovery:///inventory-service}"
+  # Presupuesto total por llamada lógica a Inventory (incluye reintentos).
   timeout: "${INVENTORY_TIMEOUT:2s}"
   compensation_timeout: "${INVENTORY_COMPENSATION_TIMEOUT:2s}"
   # Balanceo del lado cliente: wrr | p2c | random (requiere reinicio).
@@ -25,3 +26,29 @@ consul:
   address: "${CONSUL_ADDR:}"
   health_interval: "${CONSUL_HEALTH_INTERVAL:5s}"
   deregister_after: "${CONSUL_DEREGISTER_AFTER:1m}"
+resilience:
+  breaker:
+    enabled: "${BREAKER_ENABLED:true}"
+    # classic: gobreaker (CLOSED/OPEN/HALF-OPEN, estado observable).
+    # sre: breaker por defecto de Kratos (adaptativo, sin HALF-OPEN ni estado visible).
+    kind: "${BREAKER_KIND:classic}"
+    # Cada INTENTO (no cada llamada lógica) cuenta para el breaker, porque el
+    # retry va por fuera. Umbrales elegidos para que un 30% de errores
+    # transitorios o 1 de 2 réplicas rotas (que los retries enmascaran) no
+    # abran el circuito, y una caída total sí (ver docs/fases/fase-4.md).
+    failure_ratio: "${BREAKER_FAILURE_RATIO:0.6}"     # abre con >=60% de intentos fallidos...
+    min_requests: "${BREAKER_MIN_REQUESTS:10}"         # ...si hay al menos 10 en la ventana
+    consecutive_failures: "${BREAKER_CONSECUTIVE_FAILURES:10}" # o tras 10 fallos seguidos
+    window: "${BREAKER_WINDOW:10s}"                    # ventana deslizante (10 buckets)
+    open_timeout: "${BREAKER_OPEN_TIMEOUT:5s}"         # tiempo en OPEN antes de HALF-OPEN
+    half_open_max_requests: "${BREAKER_HALF_OPEN_MAX_REQUESTS:3}" # pruebas en HALF-OPEN
+  retry:
+    enabled: "${RETRY_ENABLED:true}"
+    max_attempts: "${RETRY_MAX_ATTEMPTS:3}"            # intentos totales
+    base_backoff: "${RETRY_BASE_BACKOFF:50ms}"
+    max_backoff: "${RETRY_MAX_BACKOFF:400ms}"
+    attempt_timeout: "${RETRY_ATTEMPT_TIMEOUT:600ms}"  # timeout de cada intento (< inventory.timeout)
+    # Seguras siempre: lecturas y operaciones idempotentes por diseño.
+    idempotent_operations: [GetProduct, CheckAvailability, Diagnose, ReleaseStock]
+    # Solo con clave de idempotencia en la petición.
+    key_required_operations: [ReserveStock]

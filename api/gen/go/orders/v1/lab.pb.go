@@ -13,6 +13,7 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -24,6 +25,512 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+type GetResilienceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetResilienceRequest) Reset() {
+	*x = GetResilienceRequest{}
+	mi := &file_orders_v1_lab_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetResilienceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetResilienceRequest) ProtoMessage() {}
+
+func (x *GetResilienceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_lab_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetResilienceRequest.ProtoReflect.Descriptor instead.
+func (*GetResilienceRequest) Descriptor() ([]byte, []int) {
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{0}
+}
+
+type BreakerTransition struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	From          string                 `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	To            string                 `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	At            *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=at,proto3" json:"at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BreakerTransition) Reset() {
+	*x = BreakerTransition{}
+	mi := &file_orders_v1_lab_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BreakerTransition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BreakerTransition) ProtoMessage() {}
+
+func (x *BreakerTransition) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_lab_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BreakerTransition.ProtoReflect.Descriptor instead.
+func (*BreakerTransition) Descriptor() ([]byte, []int) {
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *BreakerTransition) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *BreakerTransition) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+func (x *BreakerTransition) GetAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.At
+	}
+	return nil
+}
+
+type BreakerStatus struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Enabled bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// classic (gobreaker, 3 estados) o sre (por defecto de Kratos).
+	Kind string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	// closed | open | half-open. Vacío si la implementación no lo expone (sre).
+	State           string `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
+	StateObservable bool   `protobuf:"varint,4,opt,name=state_observable,json=stateObservable,proto3" json:"state_observable,omitempty"`
+	// Contadores de la ventana actual.
+	Requests             uint32 `protobuf:"varint,5,opt,name=requests,proto3" json:"requests,omitempty"`
+	TotalSuccesses       uint32 `protobuf:"varint,6,opt,name=total_successes,json=totalSuccesses,proto3" json:"total_successes,omitempty"`
+	TotalFailures        uint32 `protobuf:"varint,7,opt,name=total_failures,json=totalFailures,proto3" json:"total_failures,omitempty"`
+	ConsecutiveFailures  uint32 `protobuf:"varint,8,opt,name=consecutive_failures,json=consecutiveFailures,proto3" json:"consecutive_failures,omitempty"`
+	ConsecutiveSuccesses uint32 `protobuf:"varint,9,opt,name=consecutive_successes,json=consecutiveSuccesses,proto3" json:"consecutive_successes,omitempty"`
+	// Acumulados desde el arranque.
+	Allowed     uint64               `protobuf:"varint,10,opt,name=allowed,proto3" json:"allowed,omitempty"`
+	Rejected    uint64               `protobuf:"varint,11,opt,name=rejected,proto3" json:"rejected,omitempty"`
+	Successes   uint64               `protobuf:"varint,12,opt,name=successes,proto3" json:"successes,omitempty"`
+	Failures    uint64               `protobuf:"varint,13,opt,name=failures,proto3" json:"failures,omitempty"`
+	Transitions []*BreakerTransition `protobuf:"bytes,14,rep,name=transitions,proto3" json:"transitions,omitempty"`
+	// Configuración.
+	FailureRatio                 float64 `protobuf:"fixed64,15,opt,name=failure_ratio,json=failureRatio,proto3" json:"failure_ratio,omitempty"`
+	MinRequests                  uint32  `protobuf:"varint,16,opt,name=min_requests,json=minRequests,proto3" json:"min_requests,omitempty"`
+	ConsecutiveFailuresThreshold uint32  `protobuf:"varint,17,opt,name=consecutive_failures_threshold,json=consecutiveFailuresThreshold,proto3" json:"consecutive_failures_threshold,omitempty"`
+	Window                       string  `protobuf:"bytes,18,opt,name=window,proto3" json:"window,omitempty"`
+	OpenTimeout                  string  `protobuf:"bytes,19,opt,name=open_timeout,json=openTimeout,proto3" json:"open_timeout,omitempty"`
+	HalfOpenMaxRequests          uint32  `protobuf:"varint,20,opt,name=half_open_max_requests,json=halfOpenMaxRequests,proto3" json:"half_open_max_requests,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
+}
+
+func (x *BreakerStatus) Reset() {
+	*x = BreakerStatus{}
+	mi := &file_orders_v1_lab_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BreakerStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BreakerStatus) ProtoMessage() {}
+
+func (x *BreakerStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_lab_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BreakerStatus.ProtoReflect.Descriptor instead.
+func (*BreakerStatus) Descriptor() ([]byte, []int) {
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *BreakerStatus) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *BreakerStatus) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *BreakerStatus) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *BreakerStatus) GetStateObservable() bool {
+	if x != nil {
+		return x.StateObservable
+	}
+	return false
+}
+
+func (x *BreakerStatus) GetRequests() uint32 {
+	if x != nil {
+		return x.Requests
+	}
+	return 0
+}
+
+func (x *BreakerStatus) GetTotalSuccesses() uint32 {
+	if x != nil {
+		return x.TotalSuccesses
+	}
+	return 0
+}
+
+func (x *BreakerStatus) GetTotalFailures() uint32 {
+	if x != nil {
+		return x.TotalFailures
+	}
+	return 0
+}
+
+func (x *BreakerStatus) GetConsecutiveFailures() uint32 {
+	if x != nil {
+		return x.ConsecutiveFailures
+	}
+	return 0
+}
+
+func (x *BreakerStatus) GetConsecutiveSuccesses() uint32 {
+	if x != nil {
+		return x.ConsecutiveSuccesses
+	}
+	return 0
+}
+
+func (x *BreakerStatus) GetAllowed() uint64 {
+	if x != nil {
+		return x.Allowed
+	}
+	return 0
+}
+
+func (x *BreakerStatus) GetRejected() uint64 {
+	if x != nil {
+		return x.Rejected
+	}
+	return 0
+}
+
+func (x *BreakerStatus) GetSuccesses() uint64 {
+	if x != nil {
+		return x.Successes
+	}
+	return 0
+}
+
+func (x *BreakerStatus) GetFailures() uint64 {
+	if x != nil {
+		return x.Failures
+	}
+	return 0
+}
+
+func (x *BreakerStatus) GetTransitions() []*BreakerTransition {
+	if x != nil {
+		return x.Transitions
+	}
+	return nil
+}
+
+func (x *BreakerStatus) GetFailureRatio() float64 {
+	if x != nil {
+		return x.FailureRatio
+	}
+	return 0
+}
+
+func (x *BreakerStatus) GetMinRequests() uint32 {
+	if x != nil {
+		return x.MinRequests
+	}
+	return 0
+}
+
+func (x *BreakerStatus) GetConsecutiveFailuresThreshold() uint32 {
+	if x != nil {
+		return x.ConsecutiveFailuresThreshold
+	}
+	return 0
+}
+
+func (x *BreakerStatus) GetWindow() string {
+	if x != nil {
+		return x.Window
+	}
+	return ""
+}
+
+func (x *BreakerStatus) GetOpenTimeout() string {
+	if x != nil {
+		return x.OpenTimeout
+	}
+	return ""
+}
+
+func (x *BreakerStatus) GetHalfOpenMaxRequests() uint32 {
+	if x != nil {
+		return x.HalfOpenMaxRequests
+	}
+	return 0
+}
+
+type RetryStatus struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Enabled               bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	MaxAttempts           int32                  `protobuf:"varint,2,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
+	BaseBackoff           string                 `protobuf:"bytes,3,opt,name=base_backoff,json=baseBackoff,proto3" json:"base_backoff,omitempty"`
+	MaxBackoff            string                 `protobuf:"bytes,4,opt,name=max_backoff,json=maxBackoff,proto3" json:"max_backoff,omitempty"`
+	AttemptTimeout        string                 `protobuf:"bytes,5,opt,name=attempt_timeout,json=attemptTimeout,proto3" json:"attempt_timeout,omitempty"`
+	IdempotentOperations  []string               `protobuf:"bytes,6,rep,name=idempotent_operations,json=idempotentOperations,proto3" json:"idempotent_operations,omitempty"`
+	KeyRequiredOperations []string               `protobuf:"bytes,7,rep,name=key_required_operations,json=keyRequiredOperations,proto3" json:"key_required_operations,omitempty"`
+	Calls                 uint64                 `protobuf:"varint,8,opt,name=calls,proto3" json:"calls,omitempty"`
+	Attempts              uint64                 `protobuf:"varint,9,opt,name=attempts,proto3" json:"attempts,omitempty"`
+	Retries               uint64                 `protobuf:"varint,10,opt,name=retries,proto3" json:"retries,omitempty"`
+	Recovered             uint64                 `protobuf:"varint,11,opt,name=recovered,proto3" json:"recovered,omitempty"`
+	Exhausted             uint64                 `protobuf:"varint,12,opt,name=exhausted,proto3" json:"exhausted,omitempty"`
+	NotRetryable          uint64                 `protobuf:"varint,13,opt,name=not_retryable,json=notRetryable,proto3" json:"not_retryable,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *RetryStatus) Reset() {
+	*x = RetryStatus{}
+	mi := &file_orders_v1_lab_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryStatus) ProtoMessage() {}
+
+func (x *RetryStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_lab_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryStatus.ProtoReflect.Descriptor instead.
+func (*RetryStatus) Descriptor() ([]byte, []int) {
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *RetryStatus) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *RetryStatus) GetMaxAttempts() int32 {
+	if x != nil {
+		return x.MaxAttempts
+	}
+	return 0
+}
+
+func (x *RetryStatus) GetBaseBackoff() string {
+	if x != nil {
+		return x.BaseBackoff
+	}
+	return ""
+}
+
+func (x *RetryStatus) GetMaxBackoff() string {
+	if x != nil {
+		return x.MaxBackoff
+	}
+	return ""
+}
+
+func (x *RetryStatus) GetAttemptTimeout() string {
+	if x != nil {
+		return x.AttemptTimeout
+	}
+	return ""
+}
+
+func (x *RetryStatus) GetIdempotentOperations() []string {
+	if x != nil {
+		return x.IdempotentOperations
+	}
+	return nil
+}
+
+func (x *RetryStatus) GetKeyRequiredOperations() []string {
+	if x != nil {
+		return x.KeyRequiredOperations
+	}
+	return nil
+}
+
+func (x *RetryStatus) GetCalls() uint64 {
+	if x != nil {
+		return x.Calls
+	}
+	return 0
+}
+
+func (x *RetryStatus) GetAttempts() uint64 {
+	if x != nil {
+		return x.Attempts
+	}
+	return 0
+}
+
+func (x *RetryStatus) GetRetries() uint64 {
+	if x != nil {
+		return x.Retries
+	}
+	return 0
+}
+
+func (x *RetryStatus) GetRecovered() uint64 {
+	if x != nil {
+		return x.Recovered
+	}
+	return 0
+}
+
+func (x *RetryStatus) GetExhausted() uint64 {
+	if x != nil {
+		return x.Exhausted
+	}
+	return 0
+}
+
+func (x *RetryStatus) GetNotRetryable() uint64 {
+	if x != nil {
+		return x.NotRetryable
+	}
+	return 0
+}
+
+type ResilienceStatus struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Breaker *BreakerStatus         `protobuf:"bytes,1,opt,name=breaker,proto3" json:"breaker,omitempty"`
+	Retry   *RetryStatus           `protobuf:"bytes,2,opt,name=retry,proto3" json:"retry,omitempty"`
+	// Presupuesto total por llamada lógica (incluye reintentos).
+	CallTimeout   string `protobuf:"bytes,3,opt,name=call_timeout,json=callTimeout,proto3" json:"call_timeout,omitempty"`
+	Balancer      string `protobuf:"bytes,4,opt,name=balancer,proto3" json:"balancer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResilienceStatus) Reset() {
+	*x = ResilienceStatus{}
+	mi := &file_orders_v1_lab_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResilienceStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResilienceStatus) ProtoMessage() {}
+
+func (x *ResilienceStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_lab_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResilienceStatus.ProtoReflect.Descriptor instead.
+func (*ResilienceStatus) Descriptor() ([]byte, []int) {
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ResilienceStatus) GetBreaker() *BreakerStatus {
+	if x != nil {
+		return x.Breaker
+	}
+	return nil
+}
+
+func (x *ResilienceStatus) GetRetry() *RetryStatus {
+	if x != nil {
+		return x.Retry
+	}
+	return nil
+}
+
+func (x *ResilienceStatus) GetCallTimeout() string {
+	if x != nil {
+		return x.CallTimeout
+	}
+	return ""
+}
+
+func (x *ResilienceStatus) GetBalancer() string {
+	if x != nil {
+		return x.Balancer
+	}
+	return ""
+}
 
 type ProbeInventoryRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -37,7 +544,7 @@ type ProbeInventoryRequest struct {
 
 func (x *ProbeInventoryRequest) Reset() {
 	*x = ProbeInventoryRequest{}
-	mi := &file_orders_v1_lab_proto_msgTypes[0]
+	mi := &file_orders_v1_lab_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -49,7 +556,7 @@ func (x *ProbeInventoryRequest) String() string {
 func (*ProbeInventoryRequest) ProtoMessage() {}
 
 func (x *ProbeInventoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[0]
+	mi := &file_orders_v1_lab_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -62,7 +569,7 @@ func (x *ProbeInventoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProbeInventoryRequest.ProtoReflect.Descriptor instead.
 func (*ProbeInventoryRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{0}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ProbeInventoryRequest) GetCount() int32 {
@@ -89,7 +596,7 @@ type InstanceCount struct {
 
 func (x *InstanceCount) Reset() {
 	*x = InstanceCount{}
-	mi := &file_orders_v1_lab_proto_msgTypes[1]
+	mi := &file_orders_v1_lab_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -101,7 +608,7 @@ func (x *InstanceCount) String() string {
 func (*InstanceCount) ProtoMessage() {}
 
 func (x *InstanceCount) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[1]
+	mi := &file_orders_v1_lab_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -114,7 +621,7 @@ func (x *InstanceCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstanceCount.ProtoReflect.Descriptor instead.
 func (*InstanceCount) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{1}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *InstanceCount) GetInstanceId() string {
@@ -141,7 +648,7 @@ type ErrorCount struct {
 
 func (x *ErrorCount) Reset() {
 	*x = ErrorCount{}
-	mi := &file_orders_v1_lab_proto_msgTypes[2]
+	mi := &file_orders_v1_lab_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -153,7 +660,7 @@ func (x *ErrorCount) String() string {
 func (*ErrorCount) ProtoMessage() {}
 
 func (x *ErrorCount) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[2]
+	mi := &file_orders_v1_lab_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -166,7 +673,7 @@ func (x *ErrorCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorCount.ProtoReflect.Descriptor instead.
 func (*ErrorCount) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{2}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ErrorCount) GetReason() string {
@@ -204,7 +711,7 @@ type ProbeInventoryResponse struct {
 
 func (x *ProbeInventoryResponse) Reset() {
 	*x = ProbeInventoryResponse{}
-	mi := &file_orders_v1_lab_proto_msgTypes[3]
+	mi := &file_orders_v1_lab_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -216,7 +723,7 @@ func (x *ProbeInventoryResponse) String() string {
 func (*ProbeInventoryResponse) ProtoMessage() {}
 
 func (x *ProbeInventoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[3]
+	mi := &file_orders_v1_lab_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -229,7 +736,7 @@ func (x *ProbeInventoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProbeInventoryResponse.ProtoReflect.Descriptor instead.
 func (*ProbeInventoryResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{3}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ProbeInventoryResponse) GetTotal() int32 {
@@ -299,7 +806,55 @@ var File_orders_v1_lab_proto protoreflect.FileDescriptor
 
 const file_orders_v1_lab_proto_rawDesc = "" +
 	"\n" +
-	"\x13orders/v1/lab.proto\x12\torders.v1\x1a\x1cgoogle/api/annotations.proto\"N\n" +
+	"\x13orders/v1/lab.proto\x12\torders.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x16\n" +
+	"\x14GetResilienceRequest\"c\n" +
+	"\x11BreakerTransition\x12\x12\n" +
+	"\x04from\x18\x01 \x01(\tR\x04from\x12\x0e\n" +
+	"\x02to\x18\x02 \x01(\tR\x02to\x12*\n" +
+	"\x02at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\"\x80\x06\n" +
+	"\rBreakerStatus\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\tR\x05state\x12)\n" +
+	"\x10state_observable\x18\x04 \x01(\bR\x0fstateObservable\x12\x1a\n" +
+	"\brequests\x18\x05 \x01(\rR\brequests\x12'\n" +
+	"\x0ftotal_successes\x18\x06 \x01(\rR\x0etotalSuccesses\x12%\n" +
+	"\x0etotal_failures\x18\a \x01(\rR\rtotalFailures\x121\n" +
+	"\x14consecutive_failures\x18\b \x01(\rR\x13consecutiveFailures\x123\n" +
+	"\x15consecutive_successes\x18\t \x01(\rR\x14consecutiveSuccesses\x12\x18\n" +
+	"\aallowed\x18\n" +
+	" \x01(\x04R\aallowed\x12\x1a\n" +
+	"\brejected\x18\v \x01(\x04R\brejected\x12\x1c\n" +
+	"\tsuccesses\x18\f \x01(\x04R\tsuccesses\x12\x1a\n" +
+	"\bfailures\x18\r \x01(\x04R\bfailures\x12>\n" +
+	"\vtransitions\x18\x0e \x03(\v2\x1c.orders.v1.BreakerTransitionR\vtransitions\x12#\n" +
+	"\rfailure_ratio\x18\x0f \x01(\x01R\ffailureRatio\x12!\n" +
+	"\fmin_requests\x18\x10 \x01(\rR\vminRequests\x12D\n" +
+	"\x1econsecutive_failures_threshold\x18\x11 \x01(\rR\x1cconsecutiveFailuresThreshold\x12\x16\n" +
+	"\x06window\x18\x12 \x01(\tR\x06window\x12!\n" +
+	"\fopen_timeout\x18\x13 \x01(\tR\vopenTimeout\x123\n" +
+	"\x16half_open_max_requests\x18\x14 \x01(\rR\x13halfOpenMaxRequests\"\xd1\x03\n" +
+	"\vRetryStatus\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12!\n" +
+	"\fmax_attempts\x18\x02 \x01(\x05R\vmaxAttempts\x12!\n" +
+	"\fbase_backoff\x18\x03 \x01(\tR\vbaseBackoff\x12\x1f\n" +
+	"\vmax_backoff\x18\x04 \x01(\tR\n" +
+	"maxBackoff\x12'\n" +
+	"\x0fattempt_timeout\x18\x05 \x01(\tR\x0eattemptTimeout\x123\n" +
+	"\x15idempotent_operations\x18\x06 \x03(\tR\x14idempotentOperations\x126\n" +
+	"\x17key_required_operations\x18\a \x03(\tR\x15keyRequiredOperations\x12\x14\n" +
+	"\x05calls\x18\b \x01(\x04R\x05calls\x12\x1a\n" +
+	"\battempts\x18\t \x01(\x04R\battempts\x12\x18\n" +
+	"\aretries\x18\n" +
+	" \x01(\x04R\aretries\x12\x1c\n" +
+	"\trecovered\x18\v \x01(\x04R\trecovered\x12\x1c\n" +
+	"\texhausted\x18\f \x01(\x04R\texhausted\x12#\n" +
+	"\rnot_retryable\x18\r \x01(\x04R\fnotRetryable\"\xb3\x01\n" +
+	"\x10ResilienceStatus\x122\n" +
+	"\abreaker\x18\x01 \x01(\v2\x18.orders.v1.BreakerStatusR\abreaker\x12,\n" +
+	"\x05retry\x18\x02 \x01(\v2\x16.orders.v1.RetryStatusR\x05retry\x12!\n" +
+	"\fcall_timeout\x18\x03 \x01(\tR\vcallTimeout\x12\x1a\n" +
+	"\bbalancer\x18\x04 \x01(\tR\bbalancer\"N\n" +
 	"\x15ProbeInventoryRequest\x12\x14\n" +
 	"\x05count\x18\x01 \x01(\x05R\x05count\x12\x1f\n" +
 	"\vinterval_ms\x18\x02 \x01(\x05R\n" +
@@ -322,10 +877,11 @@ const file_orders_v1_lab_proto_rawDesc = "" +
 	"\x0eavg_latency_ms\x18\x06 \x01(\x01R\favgLatencyMs\x12$\n" +
 	"\x0emax_latency_ms\x18\a \x01(\x01R\fmaxLatencyMs\x12\x1a\n" +
 	"\bsequence\x18\b \x03(\tR\bsequence\x12\x1a\n" +
-	"\bbalancer\x18\t \x01(\tR\bbalancer2\x82\x01\n" +
+	"\bbalancer\x18\t \x01(\tR\bbalancer2\xf5\x01\n" +
 	"\n" +
 	"LabService\x12t\n" +
-	"\x0eProbeInventory\x12 .orders.v1.ProbeInventoryRequest\x1a!.orders.v1.ProbeInventoryResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/api/orders/lab/lbBLZJgithub.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1;ordersv1b\x06proto3"
+	"\x0eProbeInventory\x12 .orders.v1.ProbeInventoryRequest\x1a!.orders.v1.ProbeInventoryResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/api/orders/lab/lb\x12q\n" +
+	"\rGetResilience\x12\x1f.orders.v1.GetResilienceRequest\x1a\x1b.orders.v1.ResilienceStatus\"\"\x82\xd3\xe4\x93\x02\x1c\x12\x1a/api/orders/lab/resilienceBLZJgithub.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1;ordersv1b\x06proto3"
 
 var (
 	file_orders_v1_lab_proto_rawDescOnce sync.Once
@@ -339,23 +895,35 @@ func file_orders_v1_lab_proto_rawDescGZIP() []byte {
 	return file_orders_v1_lab_proto_rawDescData
 }
 
-var file_orders_v1_lab_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_orders_v1_lab_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_orders_v1_lab_proto_goTypes = []any{
-	(*ProbeInventoryRequest)(nil),  // 0: orders.v1.ProbeInventoryRequest
-	(*InstanceCount)(nil),          // 1: orders.v1.InstanceCount
-	(*ErrorCount)(nil),             // 2: orders.v1.ErrorCount
-	(*ProbeInventoryResponse)(nil), // 3: orders.v1.ProbeInventoryResponse
+	(*GetResilienceRequest)(nil),   // 0: orders.v1.GetResilienceRequest
+	(*BreakerTransition)(nil),      // 1: orders.v1.BreakerTransition
+	(*BreakerStatus)(nil),          // 2: orders.v1.BreakerStatus
+	(*RetryStatus)(nil),            // 3: orders.v1.RetryStatus
+	(*ResilienceStatus)(nil),       // 4: orders.v1.ResilienceStatus
+	(*ProbeInventoryRequest)(nil),  // 5: orders.v1.ProbeInventoryRequest
+	(*InstanceCount)(nil),          // 6: orders.v1.InstanceCount
+	(*ErrorCount)(nil),             // 7: orders.v1.ErrorCount
+	(*ProbeInventoryResponse)(nil), // 8: orders.v1.ProbeInventoryResponse
+	(*timestamppb.Timestamp)(nil),  // 9: google.protobuf.Timestamp
 }
 var file_orders_v1_lab_proto_depIdxs = []int32{
-	1, // 0: orders.v1.ProbeInventoryResponse.by_instance:type_name -> orders.v1.InstanceCount
-	2, // 1: orders.v1.ProbeInventoryResponse.errors:type_name -> orders.v1.ErrorCount
-	0, // 2: orders.v1.LabService.ProbeInventory:input_type -> orders.v1.ProbeInventoryRequest
-	3, // 3: orders.v1.LabService.ProbeInventory:output_type -> orders.v1.ProbeInventoryResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	9, // 0: orders.v1.BreakerTransition.at:type_name -> google.protobuf.Timestamp
+	1, // 1: orders.v1.BreakerStatus.transitions:type_name -> orders.v1.BreakerTransition
+	2, // 2: orders.v1.ResilienceStatus.breaker:type_name -> orders.v1.BreakerStatus
+	3, // 3: orders.v1.ResilienceStatus.retry:type_name -> orders.v1.RetryStatus
+	6, // 4: orders.v1.ProbeInventoryResponse.by_instance:type_name -> orders.v1.InstanceCount
+	7, // 5: orders.v1.ProbeInventoryResponse.errors:type_name -> orders.v1.ErrorCount
+	5, // 6: orders.v1.LabService.ProbeInventory:input_type -> orders.v1.ProbeInventoryRequest
+	0, // 7: orders.v1.LabService.GetResilience:input_type -> orders.v1.GetResilienceRequest
+	8, // 8: orders.v1.LabService.ProbeInventory:output_type -> orders.v1.ProbeInventoryResponse
+	4, // 9: orders.v1.LabService.GetResilience:output_type -> orders.v1.ResilienceStatus
+	8, // [8:10] is the sub-list for method output_type
+	6, // [6:8] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_lab_proto_init() }
@@ -369,7 +937,7 @@ func file_orders_v1_lab_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orders_v1_lab_proto_rawDesc), len(file_orders_v1_lab_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

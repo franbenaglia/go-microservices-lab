@@ -16,7 +16,7 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
   va en `pkg/` (observabilidad, health, config), sin lógica de negocio compartida.
 
 ## ADR-002 — Circuit breaker clásico vía `WithBreakerFactory`
-**Estado:** Aceptada por el usuario (2026-10-15); se implementa en la Fase 4
+**Estado:** Aceptada e implementada (2026-10-15, Fase 4). Detalles en ADR-018
 - **Contexto:** el breaker por defecto de Kratos v3 es SRE adaptativo, sin HALF-OPEN y con
   opciones internas que no se pueden configurar.
 - **Decisión:** usar `circuitbreaker.Client(circuitbreaker.WithBreakerFactory(f))`, donde `f`
@@ -27,7 +27,7 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
   SRE, sin HALF-OPEN).
 
 ## ADR-003 — Retry como middleware propio
-**Estado:** Propuesta (Fase 4)
+**Estado:** Aceptada e implementada (2026-10-15, Fase 4). Orden real: `metadata → logging → retry → breaker`; ReleaseStock se considera idempotente y ReserveStock solo con clave
 - **Decisión:** el middleware cliente `pkg/resilience/retry` aplica backoff exponencial con full
   jitter y un máximo de intentos, nunca supera el deadline del `ctx` y solo reintenta códigos
   transitorios (Unavailable, DeadlineExceeded por intento). Usa una allowlist de operaciones:
@@ -69,7 +69,7 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
   dentro de una transacción, más una tabla `reservations` con `idempotency_key UNIQUE`.
 
 ## ADR-008 — Inyección de fallos aislada
-**Estado:** Propuesta (Fase 4)
+**Estado:** Aceptada e implementada (2026-10-15, Fase 4). Configuración por réplica en `/admin/faults`; se centralizará en Consul KV en la Fase 6
 - **Decisión:** un middleware de servidor en Inventory (`internal/lab/faults`) que añade latencia,
   errores con cierta probabilidad o indisponibilidad (que también hace fallar `/readyz`). Solo se
   registra si `LAB_MODE=true`. Los parámetros se toman de Consul KV y de un endpoint admin. Los
@@ -166,3 +166,19 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
   que fijan el comportamiento (`services/orders/internal/server/balancer_test.go`).
 - **Alternativas:** filtros de nodos por llamada (`grpc.WithNodeFilter`), más potentes, pero no son
   una "estrategia" de balanceo; se reservan para posibles experimentos de versión o zona.
+
+## ADR-018 — Detalles del breaker y umbrales por defecto
+**Estado:** Aceptada (2026-10-15, Fase 4)
+- **Adaptador:** pool de callbacks `done` de `gobreaker.TwoStepCircuitBreaker`. Los `MarkFailed`
+  que Kratos emite tras un rechazo se descuentan con un contador y no cuentan como fallos.
+  Imprecisión acotada a las peticiones en vuelo durante una transición.
+- **Un breaker por dependencia** (no por operación): la fábrica devuelve una instancia compartida,
+  que es la que se observa en `/api/orders/lab/resilience`.
+- **Umbrales:** `consecutive_failures=10`, `failure_ratio=0.6`, `min_requests=10`, `window=10s`,
+  `open_timeout=5s`, `half_open_max_requests=3`. Se midió que con 5 / 0.5 un 30% de errores
+  transitorios o 1 de 2 réplicas rotas abrían el circuito, porque cada intento cuenta (retry por
+  fuera) (docs/fases/fase-4.md).
+- **`kind: sre`** usa `circuitbreaker.Client()` sin fábrica. Su estado no se expone
+  (`state_observable=false`), sin inventar una API.
+- **Endpoints de laboratorio** (`/api/orders/lab/*`, `/admin/faults`) solo con `LAB_MODE=true`
+  (cumple el "restringidos a desarrollo" de ADR-016). Traefik los filtrará en la Fase 7.

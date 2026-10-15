@@ -23,6 +23,7 @@ import (
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/biz"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/conf"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/data"
+	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/resilience"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/server"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/service"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/migrations"
@@ -106,7 +107,11 @@ func run() error {
 	if err := server.SetBalancer(cfg.Inventory.Balancer); err != nil {
 		return err
 	}
-	conn, err := server.NewInventoryConn(context.Background(), cfg.Inventory, disc, logger)
+	res, resMws, err := resilience.New(cfg.Resilience, logger)
+	if err != nil {
+		return err
+	}
+	conn, err := server.NewInventoryConn(context.Background(), cfg.Inventory, disc, logger, resMws...)
 	if err != nil {
 		return fmt.Errorf("cliente de inventory: %w", err)
 	}
@@ -121,8 +126,11 @@ func run() error {
 	uc := biz.NewOrderUsecase(data.NewOrderRepo(pool), inv, newID, cfg.Inventory.CompensationTimeout.Std())
 	svc := service.NewOrdersService(uc, logger)
 	ordersv1.RegisterOrdersServiceHTTPServer(httpSrv, svc)
-	lab := service.NewLabService(invClient, cfg.Inventory.Balancer)
-	ordersv1.RegisterLabServiceHTTPServer(httpSrv, lab)
+	// Endpoints de diagnóstico (/api/orders/lab/*) solo en modo laboratorio.
+	if platform.LabMode() {
+		lab := service.NewLabService(invClient, cfg.Inventory.Balancer, res, cfg.Inventory.Timeout.Std())
+		ordersv1.RegisterLabServiceHTTPServer(httpSrv, lab)
+	}
 	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger)
 
 	app := kratos.New(append(regOpts,
@@ -143,6 +151,10 @@ func run() error {
 		slog.String("grpc", cfg.Server.GRPC.Addr),
 		slog.String("inventory", cfg.Inventory.Endpoint),
 		slog.String("balancer", cfg.Inventory.Balancer),
+		slog.Bool("breaker", cfg.Resilience.Breaker.Enabled),
+		slog.String("breaker_kind", cfg.Resilience.Breaker.Kind),
+		slog.Bool("retry", cfg.Resilience.Retry.Enabled),
+		slog.Bool("lab_mode", platform.LabMode()),
 		slog.Bool("consul", cfg.Consul.Enabled()))
 	return app.Run()
 }

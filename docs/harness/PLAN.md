@@ -42,26 +42,28 @@ Cada fase termina con: compilar → pruebas → verificación real → resumen �
   durante la caída; peso 300 → 50%.
 - Pendiente para la Fase 4: comparar p2c frente a wrr con latencia artificial en una réplica.
 
-## Fase 4 — Resiliencia
-- [ ] Timeouts por llamada y respeto del deadline
-- [ ] Middleware de retry (ADR-003) con pruebas unitarias
-- [ ] Adaptador del circuit breaker (ADR-002) con estado observable y pruebas de transiciones
-- [ ] Inyección de fallos en Inventory (ADR-008), desactivada por defecto
-- [ ] Script `scripts/lab/resilience.sh`: sin/con retries × sin/con breaker
-- [ ] Restringir los endpoints `/api/orders/lab/*` a modo laboratorio (ADR-016)
-- [ ] p2c frente a wrr con latencia inyectada en una réplica
-- **Aceptación:** se observan CLOSED→OPEN→HALF-OPEN→CLOSED y la comparativa queda documentada.
+## Fase 4 — Resiliencia ✅ (2026-10-15)
+- [x] Timeouts: presupuesto total por llamada (2s, envuelve los reintentos) + timeout por intento (600ms)
+- [x] Middleware de retry (ADR-003): backoff exponencial, full jitter, máximo de intentos, deadline, allowlist; pruebas unitarias
+- [x] Adaptador del breaker gobreaker → middleware oficial de Kratos (ADR-002/018), estado observable; pruebas de transiciones
+- [x] Modo `sre` (breaker por defecto de Kratos) para comparar; sin estado inventado
+- [x] Inyección de fallos en Inventory (ADR-008), desactivada por defecto, solo con LAB_MODE
+- [x] Endpoints de laboratorio restringidos a LAB_MODE; `GET /api/orders/lab/resilience`
+- [x] `scripts/lab/resilience.sh` (`make lab-resilience`): sin/con retries, sin/con breaker, ciclo de estados, latencia, p2c vs wrr
+- **Aceptación:** cumplida. 19/19 (A, B y C repetidos 2 veces más: 15/15); regresión smoke 17/17, discovery 10/10, lb 19/19.
 
 ## Fase 5 — Observabilidad
 - [ ] OTel SDK (traces + metrics) con `contrib/otel/v3`; W3C tracecontext
 - [ ] Spans de negocio (validación, consulta, reserva) y PostgreSQL (otelpgx)
 - [ ] Collector → Jaeger y exportador Prometheus; Prometheus; Grafana con dashboard aprovisionado
 - [ ] Logs slog con trace_id, servicio, instancia y operación; nivel dinámico
+- [ ] Métricas del breaker (estado, transiciones, rechazos) y de los retries en Prometheus (hoy en /lab/resilience)
 - **Aceptación:** traza completa Gateway→Orders→Inventory→DB en Jaeger; dashboard con datos antes, durante y después del fallo.
 
 ## Fase 6 — Configuración centralizada
 - [ ] Source `contrib/config/consul/v3` + archivo local como base; seed del KV
 - [ ] Recarga dinámica con validación y `atomic.Pointer` (sin carreras)
+- [ ] Fallos de laboratorio centralizados en KV (`lab/inventory/faults`) para todas las réplicas
 - [ ] Tabla de parámetros dinámicos y de los que requieren reinicio (docs)
 - **Aceptación:** cambiar el timeout o el umbral del breaker en KV se refleja sin reinicio y los valores inválidos se rechazan.
 

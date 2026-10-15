@@ -8,9 +8,11 @@ import (
 	"time"
 
 	kerrors "github.com/go-kratos/kratos/v3/errors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	inventoryv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/inventory/v1"
 	ordersv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1"
+	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/resilience"
 )
 
 const (
@@ -25,8 +27,10 @@ const (
 type LabService struct {
 	ordersv1.UnimplementedLabServiceServer
 
-	inventory inventoryv1.InventoryServiceClient
-	balancer  string
+	inventory   inventoryv1.InventoryServiceClient
+	balancer    string
+	resilience  *resilience.Resilience
+	callTimeout time.Duration
 }
 
 var (
@@ -35,8 +39,51 @@ var (
 )
 
 // NewLabService construye el servicio de laboratorio.
-func NewLabService(inv inventoryv1.InventoryServiceClient, balancer string) *LabService {
-	return &LabService{inventory: inv, balancer: balancer}
+func NewLabService(inv inventoryv1.InventoryServiceClient, balancer string, res *resilience.Resilience, callTimeout time.Duration) *LabService {
+	return &LabService{inventory: inv, balancer: balancer, resilience: res, callTimeout: callTimeout}
+}
+
+// GetResilience devuelve el estado del breaker y de los reintentos. Solo se
+// informa del estado del breaker si la implementación lo expone (classic): el
+// breaker SRE de Kratos no tiene API de inspección y no se inventa una.
+func (s *LabService) GetResilience(context.Context, *ordersv1.GetResilienceRequest) (*ordersv1.ResilienceStatus, error) {
+	c := s.resilience.Settings
+	out := &ordersv1.ResilienceStatus{
+		CallTimeout: s.callTimeout.String(),
+		Balancer:    s.balancer,
+		Breaker: &ordersv1.BreakerStatus{
+			Enabled:                      c.Breaker.Enabled,
+			Kind:                         c.Breaker.Kind,
+			FailureRatio:                 c.Breaker.FailureRatio,
+			MinRequests:                  c.Breaker.MinRequests,
+			ConsecutiveFailuresThreshold: c.Breaker.ConsecutiveFailures,
+			Window:                       c.Breaker.Window.Std().String(),
+			OpenTimeout:                  c.Breaker.OpenTimeout.Std().String(),
+			HalfOpenMaxRequests:          c.Breaker.HalfOpenMaxRequests,
+		},
+	}
+	if b := s.resilience.Breaker; b != nil {
+		snap := b.Snapshot()
+		bs := out.Breaker
+		bs.StateObservable = true
+		bs.State = snap.State
+		bs.Requests, bs.TotalSuccesses, bs.TotalFailures = snap.Requests, snap.TotalSuccesses, snap.TotalFailures
+		bs.ConsecutiveFailures, bs.ConsecutiveSuccesses = snap.ConsecutiveFailures, snap.ConsecutiveSuccesses
+		bs.Allowed, bs.Rejected, bs.Successes, bs.Failures = snap.Allowed, snap.Rejected, snap.Successes, snap.Failures
+		for _, t := range snap.Transitions {
+			bs.Transitions = append(bs.Transitions, &ordersv1.BreakerTransition{From: t.From, To: t.To, At: timestamppb.New(t.At)})
+		}
+	}
+	p := s.resilience.Retrier.Policy()
+	st := s.resilience.Retrier.Stats()
+	out.Retry = &ordersv1.RetryStatus{
+		Enabled: p.Enabled, MaxAttempts: int32(p.MaxAttempts),
+		BaseBackoff: p.BaseBackoff.String(), MaxBackoff: p.MaxBackoff.String(), AttemptTimeout: p.AttemptTimeout.String(),
+		IdempotentOperations: p.Idempotent, KeyRequiredOperations: p.KeyRequired,
+		Calls: st.Calls, Attempts: st.Attempts, Retries: st.Retries,
+		Recovered: st.Recovered, Exhausted: st.Exhausted, NotRetryable: st.NotRetryable,
+	}
+	return out, nil
 }
 
 // ProbeInventory envía llamadas Diagnose consecutivas y resume la distribución.

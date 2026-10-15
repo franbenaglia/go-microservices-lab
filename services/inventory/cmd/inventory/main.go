@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-kratos/kratos/v3"
 	klog "github.com/go-kratos/kratos/v3/log"
+	"github.com/go-kratos/kratos/v3/middleware"
 
 	inventoryv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/inventory/v1"
 	"github.com/franbenaglia/go-microservices-lab/pkg/discovery"
@@ -20,6 +21,7 @@ import (
 	"github.com/franbenaglia/go-microservices-lab/services/inventory/internal/biz"
 	"github.com/franbenaglia/go-microservices-lab/services/inventory/internal/conf"
 	"github.com/franbenaglia/go-microservices-lab/services/inventory/internal/data"
+	"github.com/franbenaglia/go-microservices-lab/services/inventory/internal/lab"
 	"github.com/franbenaglia/go-microservices-lab/services/inventory/internal/server"
 	"github.com/franbenaglia/go-microservices-lab/services/inventory/internal/service"
 	"github.com/franbenaglia/go-microservices-lab/services/inventory/migrations"
@@ -87,9 +89,22 @@ func run() error {
 
 	uc := biz.NewInventoryUsecase(data.NewProductRepo(pool))
 	svc := service.NewInventoryService(uc, id, logger)
-	httpSrv := server.NewHTTPServer(cfg.Server.HTTP, health, logger)
+	// Modo laboratorio: inyección de fallos (desactivada hasta que se configure)
+	// y endpoint /admin/faults. Fuera de este modo no se registra nada.
+	var extra []middleware.Middleware
+	var injector *lab.Injector
+	if platform.LabMode() {
+		injector = lab.NewInjector(id.Instance)
+		extra = append(extra, injector.Middleware())
+		health.AddReadinessCheck("lab_faults", injector.ReadinessCheck)
+	}
+
+	httpSrv := server.NewHTTPServer(cfg.Server.HTTP, health, logger, extra...)
 	inventoryv1.RegisterInventoryServiceHTTPServer(httpSrv, svc)
-	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger)
+	if injector != nil {
+		httpSrv.HandleFunc("/admin/faults", injector.Handler())
+	}
+	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger, extra...)
 
 	// Registro en Consul (si está configurado) con check de readiness.
 	regOpts, _, err := discovery.Setup(cfg.Consul, httpSrv)
@@ -124,6 +139,7 @@ func run() error {
 		slog.String("http", cfg.Server.HTTP.Addr),
 		slog.String("grpc", cfg.Server.GRPC.Addr),
 		slog.Bool("consul", cfg.Consul.Enabled()),
-		slog.String("weight", weight))
+		slog.String("weight", weight),
+		slog.Bool("lab_mode", platform.LabMode()))
 	return app.Run()
 }

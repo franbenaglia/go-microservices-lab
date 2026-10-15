@@ -13,6 +13,25 @@ Entrada por sesión, la más reciente arriba. Plantilla:
 
 ---
 
+## Sesión 1 (continuación 4) — 2026-10-15 — Fase 4
+**Hecho:** pkg/resilience/breaker (adaptador gobreaker v2.4.0), pkg/resilience/retry, services/orders/internal/resilience,
+config `resilience:` en Orders, inyección de fallos en Inventory (internal/lab, /admin/faults), LAB_MODE,
+`GET /api/orders/lab/resilience`, utilidades en lib.sh, scripts/lab/resilience.sh + `make lab-resilience`, docs/fases/fase-4.md.
+**Verificación:**
+- Pruebas unitarias: breaker (7, incluida la integración con el middleware de Kratos), retry (11), fallos (6); `go test -race` del módulo completo en verde.
+- `make lab-resilience`: 19/19; escenarios aleatorios A/B/C repetidos: 15/15 ×2; modo sre verificado.
+- Regresión: smoke 17/17, lab-discovery 10/10, lab-lb 19/19.
+**Decisiones:** ADR-018; ADR-002, 003 y 008 pasan a implementadas.
+**Problemas encontrados:**
+- Primera ejecución 10 OK / 7 FAIL por interacciones reales: (1) umbral consecutive=5 demasiado
+  sensible con retries; (2) con ratio 0.5 el breaker compartido se abría con 1 de 2 réplicas rotas;
+  (3) `docker compose up` no recreaba Orders y el estado del breaker se arrastraba → `--force-recreate`.
+- Ciclo de importaciones server↔service → paquete internal/resilience.
+- Un script python a mitad de camino reescribió server.go antes de fallar → se revisó el estado y se recreó el archivo (sin pérdida).
+**Siguiente:** Fase 5 (Observabilidad).
+
+---
+
 ## Sesión 1 (continuación 3) — 2026-10-15 — Fase 3
 **Hecho:** selector configurable (`inventory.balancer`, `server.SetBalancer`), pesos por instancia
 (`INSTANCE_WEIGHT` → metadato `weight`), campo `balancer` en ProbeInventory, `INVENTORY_BALANCER` e

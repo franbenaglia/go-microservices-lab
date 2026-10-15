@@ -44,3 +44,7 @@ func InstanceWeight() (string, error) {
 	}
 	return strconv.Itoa(n), nil
 }
+
+// LabMode indica si el proceso corre en modo laboratorio (LAB_MODE=true). Solo
+// en ese modo se registran la inyección de fallos y los endpoints /admin y /lab.
+func LabMode() bool { return os.Getenv("LAB_MODE") == "true" }

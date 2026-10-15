@@ -23,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	LabService_ProbeInventory_FullMethodName = "/orders.v1.LabService/ProbeInventory"
+	LabService_GetResilience_FullMethodName  = "/orders.v1.LabService/GetResilience"
 )
 
 // LabServiceClient is the client API for LabService service.
@@ -33,6 +34,9 @@ type LabServiceClient interface {
 	// través del cliente gRPC con descubrimiento y devuelve qué instancia atendió
 	// cada una. Así se ve el balanceo interno (no el de Traefik).
 	ProbeInventory(ctx context.Context, in *ProbeInventoryRequest, opts ...grpc.CallOption) (*ProbeInventoryResponse, error)
+	// GetResilience devuelve el estado del circuit breaker, los contadores de
+	// reintentos y la configuración de timeouts del cliente hacia Inventory.
+	GetResilience(ctx context.Context, in *GetResilienceRequest, opts ...grpc.CallOption) (*ResilienceStatus, error)
 }
 
 type labServiceClient struct {
@@ -53,6 +57,16 @@ func (c *labServiceClient) ProbeInventory(ctx context.Context, in *ProbeInventor
 	return out, nil
 }
 
+func (c *labServiceClient) GetResilience(ctx context.Context, in *GetResilienceRequest, opts ...grpc.CallOption) (*ResilienceStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResilienceStatus)
+	err := c.cc.Invoke(ctx, LabService_GetResilience_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LabServiceServer is the server API for LabService service.
 // All implementations must embed UnimplementedLabServiceServer
 // for forward compatibility.
@@ -61,6 +75,9 @@ type LabServiceServer interface {
 	// través del cliente gRPC con descubrimiento y devuelve qué instancia atendió
 	// cada una. Así se ve el balanceo interno (no el de Traefik).
 	ProbeInventory(context.Context, *ProbeInventoryRequest) (*ProbeInventoryResponse, error)
+	// GetResilience devuelve el estado del circuit breaker, los contadores de
+	// reintentos y la configuración de timeouts del cliente hacia Inventory.
+	GetResilience(context.Context, *GetResilienceRequest) (*ResilienceStatus, error)
 	mustEmbedUnimplementedLabServiceServer()
 }
 
@@ -73,6 +90,9 @@ type UnimplementedLabServiceServer struct{}
 
 func (UnimplementedLabServiceServer) ProbeInventory(context.Context, *ProbeInventoryRequest) (*ProbeInventoryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ProbeInventory not implemented")
+}
+func (UnimplementedLabServiceServer) GetResilience(context.Context, *GetResilienceRequest) (*ResilienceStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetResilience not implemented")
 }
 func (UnimplementedLabServiceServer) mustEmbedUnimplementedLabServiceServer() {}
 func (UnimplementedLabServiceServer) testEmbeddedByValue()                    {}
@@ -113,6 +133,24 @@ func _LabService_ProbeInventory_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LabService_GetResilience_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetResilienceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LabServiceServer).GetResilience(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LabService_GetResilience_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LabServiceServer).GetResilience(ctx, req.(*GetResilienceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // LabService_ServiceDesc is the grpc.ServiceDesc for LabService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -123,6 +161,10 @@ var LabService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ProbeInventory",
 			Handler:    _LabService_ProbeInventory_Handler,
+		},
+		{
+			MethodName: "GetResilience",
+			Handler:    _LabService_GetResilience_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

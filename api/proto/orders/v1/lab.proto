@@ -5,6 +5,7 @@ syntax = "proto3";
 package orders.v1;
 
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1;ordersv1";
 
@@ -18,6 +19,72 @@ service LabService {
       body: "*"
     };
   }
+
+  // GetResilience devuelve el estado del circuit breaker, los contadores de
+  // reintentos y la configuración de timeouts del cliente hacia Inventory.
+  rpc GetResilience(GetResilienceRequest) returns (ResilienceStatus) {
+    option (google.api.http) = {get: "/api/orders/lab/resilience"};
+  }
+}
+
+message GetResilienceRequest {}
+
+message BreakerTransition {
+  string from = 1;
+  string to = 2;
+  google.protobuf.Timestamp at = 3;
+}
+
+message BreakerStatus {
+  bool enabled = 1;
+  // classic (gobreaker, 3 estados) o sre (por defecto de Kratos).
+  string kind = 2;
+  // closed | open | half-open. Vacío si la implementación no lo expone (sre).
+  string state = 3;
+  bool state_observable = 4;
+  // Contadores de la ventana actual.
+  uint32 requests = 5;
+  uint32 total_successes = 6;
+  uint32 total_failures = 7;
+  uint32 consecutive_failures = 8;
+  uint32 consecutive_successes = 9;
+  // Acumulados desde el arranque.
+  uint64 allowed = 10;
+  uint64 rejected = 11;
+  uint64 successes = 12;
+  uint64 failures = 13;
+  repeated BreakerTransition transitions = 14;
+  // Configuración.
+  double failure_ratio = 15;
+  uint32 min_requests = 16;
+  uint32 consecutive_failures_threshold = 17;
+  string window = 18;
+  string open_timeout = 19;
+  uint32 half_open_max_requests = 20;
+}
+
+message RetryStatus {
+  bool enabled = 1;
+  int32 max_attempts = 2;
+  string base_backoff = 3;
+  string max_backoff = 4;
+  string attempt_timeout = 5;
+  repeated string idempotent_operations = 6;
+  repeated string key_required_operations = 7;
+  uint64 calls = 8;
+  uint64 attempts = 9;
+  uint64 retries = 10;
+  uint64 recovered = 11;
+  uint64 exhausted = 12;
+  uint64 not_retryable = 13;
+}
+
+message ResilienceStatus {
+  BreakerStatus breaker = 1;
+  RetryStatus retry = 2;
+  // Presupuesto total por llamada lógica (incluye reintentos).
+  string call_timeout = 3;
+  string balancer = 4;
 }
 
 message ProbeInventoryRequest {
