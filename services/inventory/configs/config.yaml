@@ -19,3 +19,8 @@ consul:
   address: "${CONSUL_ADDR:}"
   health_interval: "${CONSUL_HEALTH_INTERVAL:5s}"
   deregister_after: "${CONSUL_DEREGISTER_AFTER:1m}"
+telemetry:
+  # Endpoint OTLP/gRPC del OpenTelemetry Collector. Vacío desactiva la exportación.
+  endpoint: "${OTEL_ENDPOINT:}"
+  sample_ratio: "${OTEL_SAMPLE_RATIO:1.0}"   # laboratorio: se muestrean todas las trazas
+  metric_interval: "${OTEL_METRIC_INTERVAL:5s}"

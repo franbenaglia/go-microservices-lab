@@ -1,0 +1,13 @@
+apiVersion: 1
+# Jaeger no se añade como datasource: el plugin de Grafana usa la API heredada
+# (/api/services), que Jaeger 2.22 ya no expone (solo /api/v3). Las trazas se
+# consultan en la UI de Jaeger (enlace en el dashboard).
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      timeInterval: 5s

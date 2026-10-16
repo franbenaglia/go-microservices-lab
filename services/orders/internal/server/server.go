@@ -28,22 +28,21 @@ import (
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/service"
 )
 
-func middlewares(logger *slog.Logger) []middleware.Middleware {
-	return []middleware.Middleware{
-		recovery.Recovery(recovery.WithLogger(logger)),
-		metadata.Server(),
-		logging.Server(logger),
-	}
+// serverChain: recovery → telemetry (tracing, métricas) → metadata → logging.
+func serverChain(logger *slog.Logger, telemetry []middleware.Middleware) []middleware.Middleware {
+	out := []middleware.Middleware{recovery.Recovery(recovery.WithLogger(logger))}
+	out = append(out, telemetry...)
+	return append(out, metadata.Server(), logging.Server(logger))
 }
 
 // NewHTTPServer crea el servidor HTTP con los endpoints de salud. La API REST
 // se registra después con ordersv1.RegisterOrdersServiceHTTPServer, para que el
 // endpoint (y la URL de readiness) se conozca antes de construir el resto.
-func NewHTTPServer(c conf.Listener, health *platform.Health, logger *slog.Logger) *http.Server {
+func NewHTTPServer(c conf.Listener, health *platform.Health, logger *slog.Logger, telemetry []middleware.Middleware) *http.Server {
 	opts := append([]http.ServerOption{
 		http.Address(c.Addr),
 		http.Timeout(c.Timeout.Std()),
-		http.Middleware(middlewares(logger)...),
+		http.Middleware(serverChain(logger, telemetry)...),
 	}, httpcodec.ServerOptions()...)
 	srv := http.NewServer(opts...)
 	srv.HandleFunc("/livez", health.LivenessHandler())
@@ -52,11 +51,11 @@ func NewHTTPServer(c conf.Listener, health *platform.Health, logger *slog.Logger
 }
 
 // NewGRPCServer publica la API de Orders por gRPC.
-func NewGRPCServer(c conf.Listener, svc *service.OrdersService, logger *slog.Logger) *grpc.Server {
+func NewGRPCServer(c conf.Listener, svc *service.OrdersService, logger *slog.Logger, telemetry []middleware.Middleware) *grpc.Server {
 	srv := grpc.NewServer(
 		grpc.Address(c.Addr),
 		grpc.Timeout(c.Timeout.Std()),
-		grpc.Middleware(middlewares(logger)...),
+		grpc.Middleware(serverChain(logger, telemetry)...),
 	)
 	ordersv1.RegisterOrdersServiceServer(srv, svc)
 	return srv
@@ -98,12 +97,14 @@ func SetBalancer(name string) error {
 //
 // Orden de los middlewares (de fuera hacia dentro):
 //
-//	metadata → logging → [resiliencia: retry → circuit breaker] → invocación gRPC
+//	[telemetría: tracing → métricas → instancia] → metadata → logging →
+//	[resiliencia: retry → circuit breaker] → invocación gRPC
 //
 // El timeout de Kratos (WithTimeout) envuelve toda la cadena: es el
 // presupuesto total de la llamada, reintentos incluidos.
-func NewInventoryConn(ctx context.Context, c conf.Inventory, disc registry.Discovery, logger *slog.Logger, resilience ...middleware.Middleware) (*ggrpc.ClientConn, error) {
-	mws := append([]middleware.Middleware{metadata.Client(), logging.Client(logger)}, resilience...)
+func NewInventoryConn(ctx context.Context, c conf.Inventory, disc registry.Discovery, logger *slog.Logger, telemetry, resilience []middleware.Middleware) (*ggrpc.ClientConn, error) {
+	mws := append(append([]middleware.Middleware{}, telemetry...), metadata.Client(), logging.Client(logger))
+	mws = append(mws, resilience...)
 	opts := []grpc.ClientOption{
 		grpc.WithEndpoint(c.Endpoint),
 		grpc.WithTimeout(c.Timeout.Std()),

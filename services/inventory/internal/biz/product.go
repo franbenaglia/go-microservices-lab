@@ -5,12 +5,49 @@ package biz
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
+
+// tracer usa la API de OpenTelemetry (independiente del proveedor).
+var tracer = otel.Tracer("inventory-service/biz")
+
+func endSpan(span trace.Span, err error) {
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, ErrorType(err))
+		span.SetAttributes(attribute.String("error.type", ErrorType(err)))
+	}
+	span.End()
+}
+
+// ErrorType clasifica un error de dominio para trazas y métricas.
+func ErrorType(err error) string {
+	switch {
+	case errors.Is(err, ErrInvalidArgument):
+		return "invalid_argument"
+	case errors.Is(err, ErrProductNotFound):
+		return "product_not_found"
+	case errors.Is(err, ErrInsufficientStock):
+		return "insufficient_stock"
+	case errors.Is(err, ErrReservationNotFound):
+		return "reservation_not_found"
+	case errors.Is(err, ErrIdempotencyKeyConflict):
+		return "idempotency_key_conflict"
+	case errors.Is(err, ErrSKUAlreadyExists):
+		return "sku_already_exists"
+	}
+	return "internal"
+}
 
 // Límites de validación.
 const (
@@ -162,7 +199,9 @@ func (uc *InventoryUsecase) AdjustStock(ctx context.Context, id string, delta in
 }
 
 // CheckAvailability informa, sin modificar nada, si hay stock para cada línea.
-func (uc *InventoryUsecase) CheckAvailability(ctx context.Context, lines []StockLine) (bool, []AvailabilityLine, error) {
+func (uc *InventoryUsecase) CheckAvailability(ctx context.Context, lines []StockLine) (_ bool, _ []AvailabilityLine, err error) {
+	ctx, span := tracer.Start(ctx, "inventory.check_availability", trace.WithAttributes(attribute.Int("inventory.lines", len(lines))))
+	defer func() { endSpan(span, err) }()
 	norm, err := NormalizeLines(lines)
 	if err != nil {
 		return false, nil, err
@@ -176,11 +215,17 @@ func (uc *InventoryUsecase) CheckAvailability(ctx context.Context, lines []Stock
 		return false, nil, err
 	}
 	all, out := EvaluateAvailability(norm, products)
+	span.SetAttributes(attribute.Bool("inventory.all_available", all))
 	return all, out, nil
 }
 
 // ReserveStock reserva stock de forma atómica e idempotente.
-func (uc *InventoryUsecase) ReserveStock(ctx context.Context, idempotencyKey string, lines []StockLine) (*Reservation, bool, error) {
+func (uc *InventoryUsecase) ReserveStock(ctx context.Context, idempotencyKey string, lines []StockLine) (res *Reservation, replayed bool, err error) {
+	ctx, span := tracer.Start(ctx, "inventory.reserve_stock", trace.WithAttributes(attribute.Int("inventory.lines", len(lines))))
+	defer func() {
+		span.SetAttributes(attribute.Bool("inventory.replayed", replayed))
+		endSpan(span, err)
+	}()
 	key := strings.TrimSpace(idempotencyKey)
 	if key == "" || len(key) > MaxIdemKeyLen {
 		return nil, false, fmt.Errorf("%w: idempotency_key obligatoria (máx. %d caracteres)", ErrInvalidArgument, MaxIdemKeyLen)
@@ -193,7 +238,13 @@ func (uc *InventoryUsecase) ReserveStock(ctx context.Context, idempotencyKey str
 }
 
 // ReleaseStock libera una reserva por ID o por clave de idempotencia.
-func (uc *InventoryUsecase) ReleaseStock(ctx context.Context, target ReleaseTarget) (*Reservation, bool, error) {
+func (uc *InventoryUsecase) ReleaseStock(ctx context.Context, target ReleaseTarget) (res *Reservation, already bool, err error) {
+	ctx, span := tracer.Start(ctx, "inventory.release_stock",
+		trace.WithAttributes(attribute.Bool("inventory.by_key", target.IdempotencyKey != "")))
+	defer func() {
+		span.SetAttributes(attribute.Bool("inventory.already_released", already))
+		endSpan(span, err)
+	}()
 	target.ReservationID = strings.TrimSpace(target.ReservationID)
 	target.IdempotencyKey = strings.TrimSpace(target.IdempotencyKey)
 	switch {

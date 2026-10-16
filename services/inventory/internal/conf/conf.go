@@ -7,14 +7,16 @@ import (
 
 	"github.com/franbenaglia/go-microservices-lab/pkg/discovery"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
+	"github.com/franbenaglia/go-microservices-lab/pkg/telemetry"
 )
 
 // Config es la configuración completa del servicio.
 type Config struct {
-	Server Server           `json:"server"`
-	Data   Data             `json:"data"`
-	Log    Log              `json:"log"`
-	Consul discovery.Config `json:"consul"`
+	Server    Server           `json:"server"`
+	Data      Data             `json:"data"`
+	Log       Log              `json:"log"`
+	Consul    discovery.Config `json:"consul"`
+	Telemetry telemetry.Config `json:"telemetry"`
 }
 
 // Server agrupa los servidores HTTP y gRPC.
@@ -54,6 +56,9 @@ func (c *Config) Validate() error {
 		errs = append(errs, fmt.Errorf("data.dsn vacío: definir %sDB_DSN", platform.EnvPrefix))
 	}
 	if err := c.Consul.Validate(); err != nil {
+		errs = append(errs, err)
+	}
+	if err := c.Telemetry.Validate(); err != nil {
 		errs = append(errs, err)
 	}
 	return errors.Join(errs...)

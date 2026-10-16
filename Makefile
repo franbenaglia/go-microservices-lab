@@ -66,6 +66,14 @@ lab-lb: ## Escenarios de balanceo del lado cliente (MODE=stop|kill)
 lab-resilience: ## Escenarios de resiliencia: retries, breaker, timeouts (args: A B C D E)
 	./scripts/lab/resilience.sh $(ARGS)
 
+.PHONY: lab-observability
+lab-observability: ## Traza distribuida, logs correlacionados, métricas y dashboard
+	./scripts/lab/observability.sh
+
+.PHONY: dashboard
+dashboard: ## Regenera el dashboard de Grafana desde deployments/grafana/build-dashboard.py
+	python3 deployments/grafana/build-dashboard.py
+
 .PHONY: smoke
 smoke: ## Prueba de humo de la Fase 1 contra la plataforma en marcha
 	./scripts/smoke.sh

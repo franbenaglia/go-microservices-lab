@@ -8,6 +8,8 @@ import (
 	"time"
 
 	kerrors "github.com/go-kratos/kratos/v3/errors"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	inventoryv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/inventory/v1"
@@ -23,6 +25,9 @@ type InventoryService struct {
 	uc     *biz.InventoryUsecase
 	id     platform.Identity
 	logger *slog.Logger
+
+	reservations metric.Int64Counter
+	releases     metric.Int64Counter
 }
 
 var (
@@ -30,9 +35,26 @@ var (
 	_ inventoryv1.InventoryServiceHTTPServer = (*InventoryService)(nil)
 )
 
-// NewInventoryService construye el servicio.
-func NewInventoryService(uc *biz.InventoryUsecase, id platform.Identity, logger *slog.Logger) *InventoryService {
-	return &InventoryService{uc: uc, id: id, logger: logger}
+// NewInventoryService construye el servicio. m publica las métricas de negocio:
+//
+//	inventory_reservations_total{result}  reserved|replayed|<tipo de error>
+//	inventory_releases_total{result}      released|already_released|<tipo de error>
+func NewInventoryService(uc *biz.InventoryUsecase, id platform.Identity, logger *slog.Logger, m metric.Meter) (*InventoryService, error) {
+	s := &InventoryService{uc: uc, id: id, logger: logger}
+	var err error
+	if s.reservations, err = m.Int64Counter("inventory_reservations_total",
+		metric.WithDescription("Reservas de stock por resultado")); err != nil {
+		return nil, err
+	}
+	if s.releases, err = m.Int64Counter("inventory_releases_total",
+		metric.WithDescription("Liberaciones de stock por resultado")); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func count(ctx context.Context, c metric.Int64Counter, result string) {
+	c.Add(ctx, 1, metric.WithAttributes(attribute.String("result", result)))
 }
 
 func (s *InventoryService) CreateProduct(ctx context.Context, req *inventoryv1.CreateProductRequest) (*inventoryv1.Product, error) {
@@ -102,7 +124,13 @@ func (s *InventoryService) CheckAvailability(ctx context.Context, req *inventory
 func (s *InventoryService) ReserveStock(ctx context.Context, req *inventoryv1.ReserveStockRequest) (*inventoryv1.ReserveStockResponse, error) {
 	res, replayed, err := s.uc.ReserveStock(ctx, req.GetIdempotencyKey(), fromProtoLines(req.GetItems()))
 	if err != nil {
+		count(ctx, s.reservations, biz.ErrorType(err))
 		return nil, s.toAPIError(ctx, "ReserveStock", err)
+	}
+	if replayed {
+		count(ctx, s.reservations, "replayed")
+	} else {
+		count(ctx, s.reservations, "reserved")
 	}
 	return &inventoryv1.ReserveStockResponse{ReservationId: res.ID, Replayed: replayed}, nil
 }
@@ -113,7 +141,13 @@ func (s *InventoryService) ReleaseStock(ctx context.Context, req *inventoryv1.Re
 		IdempotencyKey: req.GetIdempotencyKey(),
 	})
 	if err != nil {
+		count(ctx, s.releases, biz.ErrorType(err))
 		return nil, s.toAPIError(ctx, "ReleaseStock", err)
+	}
+	if already {
+		count(ctx, s.releases, "already_released")
+	} else {
+		count(ctx, s.releases, "released")
 	}
 	return &inventoryv1.ReleaseStockResponse{ReservationId: res.ID, AlreadyReleased: already}, nil
 }

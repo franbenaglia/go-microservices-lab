@@ -1,0 +1,16 @@
+# Prometheus del laboratorio: las métricas de los servicios llegan por OTLP al
+# Collector, que las expone en :8889. honor_labels conserva job e instance tal
+# como los define el Collector (servicio e instancia), no los del scrape.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: otel-collector
+    honor_labels: true
+    static_configs:
+      - targets: ["otel-collector:8889"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

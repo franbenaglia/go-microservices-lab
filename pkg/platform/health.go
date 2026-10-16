@@ -132,3 +132,14 @@ func RunHealthcheck(url string) error {
 	}
 	return nil
 }
+
+// ReadyFunc devuelve una función que informa (1/0) de si la instancia está
+// preparada, para publicarla como métrica.
+func (h *Health) ReadyFunc() func(context.Context) int64 {
+	return func(ctx context.Context) int64 {
+		if ok, _ := h.Ready(ctx); ok {
+			return 1
+		}
+		return 0
+	}
+}

@@ -87,3 +87,15 @@ v2. **Mitigación:** consultar siempre el código fuente del módulo (regla en C
 - **Nombre del repositorio:** remoto `github.com/franbenaglia/go-microservices-lab`; el directorio
   local (`go-uservicios`) es la raíz.
 - **Un solo `go.mod` en la raíz** para que los contratos y el código común sean simples (ADR-001).
+
+## Actualización 2026-10-16 (Fase 5)
+
+| Componente | Versión | Nota |
+|---|---|---|
+| go.opentelemetry.io/otel (+sdk, exporters OTLP gRPC) | v1.47.0 | contrib/otel/v3 declara 1.43; MVS usa 1.47 sin problemas |
+| go.opentelemetry.io/contrib/instrumentation/runtime | v0.72.0 | métricas del runtime de Go |
+| github.com/exaring/otelpgx | v0.13.0 | spans y métricas de pgx |
+| otel/opentelemetry-collector-contrib | 0.162.0 | exportador prometheus incluido |
+| jaegertracing/jaeger | 2.22.0 | **solo API /api/v3**; el datasource Jaeger de Grafana no funciona (ADR-020) |
+| prom/prometheus | v3.15.0 | |
+| grafana/grafana | 13.2.4 | |

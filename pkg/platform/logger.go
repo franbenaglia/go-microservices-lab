@@ -1,12 +1,14 @@
 package platform
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 
 	klog "github.com/go-kratos/kratos/v3/log"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // sensitiveKeys son claves que nunca deben aparecer en los logs.
@@ -31,6 +33,7 @@ func NewLogger(id Identity, level string) (*slog.Logger, *slog.LevelVar, error) 
 		klog.WithFormat(klog.FormatJSON),
 		klog.WithLevel(lv),
 		klog.WithFilter(klog.FilterKey(sensitiveKeys...)),
+		klog.WithExtractor(traceAttrs),
 	)
 	logger := slog.New(handler).With(
 		slog.String("service", id.Service),
@@ -57,4 +60,18 @@ func SetLogLevel(lv *slog.LevelVar, level string) error {
 	}
 	lv.Set(l)
 	return nil
+}
+
+// traceAttrs añade trace_id y span_id a cada log emitido con un contexto que
+// tenga un span activo (correlación logs ↔ trazas en Jaeger). Sin span no
+// añade nada, a diferencia de tracing.TraceAttrs, que añadiría valores vacíos.
+func traceAttrs(ctx context.Context) []slog.Attr {
+	sc := trace.SpanContextFromContext(ctx)
+	if !sc.IsValid() {
+		return nil
+	}
+	return []slog.Attr{
+		slog.String("trace_id", sc.TraceID().String()),
+		slog.String("span_id", sc.SpanID().String()),
+	}
 }

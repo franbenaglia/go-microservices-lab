@@ -23,7 +23,9 @@ type Resilience struct {
 
 // New construye los middlewares de resiliencia según la configuración, en el
 // orden en que deben encadenarse: retry (fuera) → circuit breaker (dentro).
-func New(c conf.Resilience, logger *slog.Logger) (*Resilience, []middleware.Middleware, error) {
+//
+// onTransition (opcional) se invoca en cada cambio de estado del breaker (métricas).
+func New(c conf.Resilience, logger *slog.Logger, onTransition func(from, to string)) (*Resilience, []middleware.Middleware, error) {
 	r := &Resilience{Settings: c}
 	retrier, err := retry.New(retry.Policy{
 		Enabled:        c.Retry.Enabled,
@@ -59,6 +61,9 @@ func New(c conf.Resilience, logger *slog.Logger) (*Resilience, []middleware.Midd
 		}, breaker.OnStateChange(func(from, to string) {
 			logger.Warn("circuit breaker: cambio de estado",
 				slog.String("breaker", "inventory-service"), slog.String("from", from), slog.String("to", to))
+			if onTransition != nil {
+				onTransition(from, to)
+			}
 		}))
 		if err != nil {
 			return nil, nil, err

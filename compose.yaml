@@ -4,6 +4,7 @@
 # Fase 2: Consul (registro, descubrimiento y health checks).
 # Fase 3: balanceo del lado cliente (INVENTORY_BALANCER, --scale inventory=N).
 # Fase 4: resiliencia (BREAKER_*, RETRY_*) e inyección de fallos (LAB_MODE).
+# Fase 5: observabilidad (OTel Collector, Jaeger, Prometheus, Grafana).
 # Las credenciales se leen de .env (ver .env.example).
 #
 # Nota: los puertos HTTP de los servicios se publican en 127.0.0.1 de forma
@@ -17,8 +18,9 @@ x-service-defaults: &service-defaults
   stop_grace_period: 15s
   networks: [lab]
 
-# Variables comunes de registro en Consul.
+# Variables comunes de los microservicios (Consul, telemetría, laboratorio).
 x-consul-env: &consul-env
+  APP_OTEL_ENDPOINT: otel-collector:4317
   # Modo laboratorio: inyección de fallos y endpoints /admin y /lab.
   LAB_MODE: ${LAB_MODE:-true}
   APP_CONSUL_ADDR: consul:8500
@@ -79,6 +81,8 @@ services:
         condition: service_healthy
       consul:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     # Sin puerto fijo para poder escalar: cada réplica publica su HTTP en un
     # puerto efímero de 127.0.0.1 (`docker compose port --index N inventory 8000`).
     # Temporal hasta que Traefik sea el punto de entrada (Fase 7).
@@ -108,12 +112,73 @@ services:
         condition: service_healthy
       consul:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     ports:
       - "127.0.0.1:8081:8000" # temporal (Fase 1)
+
+  # --- Observabilidad ---
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/collector.yaml"]
+    volumes:
+      - ./deployments/otel/collector.yaml:/etc/otelcol/collector.yaml:ro
+    depends_on: [jaeger]
+    networks: [lab]
+
+  jaeger:
+    image: jaegertracing/jaeger:2.22.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:16686:16686" # UI de Jaeger
+    networks: [lab]
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./deployments/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheusdata:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090" # UI de Prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [lab]
+
+  grafana:
+    image: grafana/grafana:13.2.4
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?definir GRAFANA_ADMIN_PASSWORD en .env}
+      # Laboratorio local: lectura anónima para abrir los dashboards desde el frontend.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/lab-overview.json
+    volumes:
+      - ./deployments/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deployments/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000" # UI de Grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks: [lab]
 
 volumes:
   pgdata:
   consuldata:
+  prometheusdata:
+  grafanadata:
 
 networks:
   lab:

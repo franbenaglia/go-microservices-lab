@@ -20,6 +20,7 @@ import (
 	"github.com/franbenaglia/go-microservices-lab/pkg/discovery"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
 	"github.com/franbenaglia/go-microservices-lab/pkg/postgres"
+	"github.com/franbenaglia/go-microservices-lab/pkg/telemetry"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/biz"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/conf"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/data"
@@ -69,16 +70,34 @@ func run() error {
 
 	initCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
+	tel, err := telemetry.Setup(initCtx, cfg.Telemetry, id)
+	if err != nil {
+		return err
+	}
+	defer shutdownTelemetry(tel, logger)
+	serverTel, err := tel.ServerMiddlewares()
+	if err != nil {
+		return err
+	}
+	clientTel, err := tel.ClientMiddlewares()
+	if err != nil {
+		return err
+	}
+
 	pool, err := postgres.NewPool(initCtx, postgres.Options{
 		DSN:             cfg.Data.DSN,
 		MaxConns:        cfg.Data.MaxConns,
 		ConnectTimeout:  5 * time.Second,
 		ConnectAttempts: 30,
+		Tracer:          postgres.NewTracer(),
 	})
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
+	if err := postgres.RecordStats(pool); err != nil {
+		return err
+	}
 	if cfg.Data.AutoMigrate {
 		if err := postgres.Migrate(initCtx, pool, migrations.FS); err != nil {
 			return err
@@ -91,11 +110,14 @@ func run() error {
 	// de desaparecer del balanceo.
 	health := platform.NewHealth(2 * time.Second)
 	health.AddReadinessCheck("postgres", func(ctx context.Context) error { return pool.Ping(ctx) })
+	if err := tel.RegisterReadiness(health.ReadyFunc()); err != nil {
+		return err
+	}
 
 	// El servidor HTTP se crea antes que el resto para conocer su endpoint:
 	// el registry de Consul lo necesita para el check de readiness y, a la
 	// vez, el cliente gRPC necesita el registry para descubrir Inventory.
-	httpSrv := server.NewHTTPServer(cfg.Server.HTTP, health, logger)
+	httpSrv := server.NewHTTPServer(cfg.Server.HTTP, health, logger, serverTel)
 	regOpts, reg, err := discovery.Setup(cfg.Consul, httpSrv)
 	if err != nil {
 		return err
@@ -107,11 +129,18 @@ func run() error {
 	if err := server.SetBalancer(cfg.Inventory.Balancer); err != nil {
 		return err
 	}
-	res, resMws, err := resilience.New(cfg.Resilience, logger)
+	onTransition, err := resilience.TransitionCounter(tel.Meter)
 	if err != nil {
 		return err
 	}
-	conn, err := server.NewInventoryConn(context.Background(), cfg.Inventory, disc, logger, resMws...)
+	res, resMws, err := resilience.New(cfg.Resilience, logger, onTransition)
+	if err != nil {
+		return err
+	}
+	if err := res.RegisterMetrics(tel.Meter); err != nil {
+		return err
+	}
+	conn, err := server.NewInventoryConn(context.Background(), cfg.Inventory, disc, logger, clientTel, resMws)
 	if err != nil {
 		return fmt.Errorf("cliente de inventory: %w", err)
 	}
@@ -124,14 +153,17 @@ func run() error {
 	invClient := inventoryv1.NewInventoryServiceClient(conn)
 	inv := data.NewInventoryClient(invClient)
 	uc := biz.NewOrderUsecase(data.NewOrderRepo(pool), inv, newID, cfg.Inventory.CompensationTimeout.Std())
-	svc := service.NewOrdersService(uc, logger)
+	svc, err := service.NewOrdersService(uc, logger, tel.Meter)
+	if err != nil {
+		return err
+	}
 	ordersv1.RegisterOrdersServiceHTTPServer(httpSrv, svc)
 	// Endpoints de diagnóstico (/api/orders/lab/*) solo en modo laboratorio.
 	if platform.LabMode() {
 		lab := service.NewLabService(invClient, cfg.Inventory.Balancer, res, cfg.Inventory.Timeout.Std())
 		ordersv1.RegisterLabServiceHTTPServer(httpSrv, lab)
 	}
-	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger)
+	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger, serverTel)
 
 	app := kratos.New(append(regOpts,
 		kratos.ID(id.Instance),
@@ -155,6 +187,16 @@ func run() error {
 		slog.String("breaker_kind", cfg.Resilience.Breaker.Kind),
 		slog.Bool("retry", cfg.Resilience.Retry.Enabled),
 		slog.Bool("lab_mode", platform.LabMode()),
+		slog.Bool("telemetry", cfg.Telemetry.Enabled()),
 		slog.Bool("consul", cfg.Consul.Enabled()))
 	return app.Run()
+}
+
+// shutdownTelemetry vacía las trazas y métricas pendientes al terminar.
+func shutdownTelemetry(tel *telemetry.Telemetry, logger *slog.Logger) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := tel.Shutdown(ctx); err != nil {
+		logger.Warn("cierre de telemetría", slog.Any("error", err))
+	}
 }

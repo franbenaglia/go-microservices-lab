@@ -18,6 +18,7 @@ import (
 	"github.com/franbenaglia/go-microservices-lab/pkg/discovery"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
 	"github.com/franbenaglia/go-microservices-lab/pkg/postgres"
+	"github.com/franbenaglia/go-microservices-lab/pkg/telemetry"
 	"github.com/franbenaglia/go-microservices-lab/services/inventory/internal/biz"
 	"github.com/franbenaglia/go-microservices-lab/services/inventory/internal/conf"
 	"github.com/franbenaglia/go-microservices-lab/services/inventory/internal/data"
@@ -67,16 +68,30 @@ func run() error {
 
 	initCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
+	tel, err := telemetry.Setup(initCtx, cfg.Telemetry, id)
+	if err != nil {
+		return err
+	}
+	defer shutdownTelemetry(tel, logger)
+	serverTel, err := tel.ServerMiddlewares()
+	if err != nil {
+		return err
+	}
+
 	pool, err := postgres.NewPool(initCtx, postgres.Options{
 		DSN:             cfg.Data.DSN,
 		MaxConns:        cfg.Data.MaxConns,
 		ConnectTimeout:  5 * time.Second,
 		ConnectAttempts: 30,
+		Tracer:          postgres.NewTracer(),
 	})
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
+	if err := postgres.RecordStats(pool); err != nil {
+		return err
+	}
 	if cfg.Data.AutoMigrate {
 		if err := postgres.Migrate(initCtx, pool, migrations.FS); err != nil {
 			return err
@@ -86,9 +101,15 @@ func run() error {
 
 	health := platform.NewHealth(2 * time.Second)
 	health.AddReadinessCheck("postgres", func(ctx context.Context) error { return pool.Ping(ctx) })
+	if err := tel.RegisterReadiness(health.ReadyFunc()); err != nil {
+		return err
+	}
 
 	uc := biz.NewInventoryUsecase(data.NewProductRepo(pool))
-	svc := service.NewInventoryService(uc, id, logger)
+	svc, err := service.NewInventoryService(uc, id, logger, tel.Meter)
+	if err != nil {
+		return err
+	}
 	// Modo laboratorio: inyección de fallos (desactivada hasta que se configure)
 	// y endpoint /admin/faults. Fuera de este modo no se registra nada.
 	var extra []middleware.Middleware
@@ -99,12 +120,13 @@ func run() error {
 		health.AddReadinessCheck("lab_faults", injector.ReadinessCheck)
 	}
 
-	httpSrv := server.NewHTTPServer(cfg.Server.HTTP, health, logger, extra...)
+	mws := server.Middlewares{Telemetry: serverTel, Extra: extra}
+	httpSrv := server.NewHTTPServer(cfg.Server.HTTP, health, logger, mws)
 	inventoryv1.RegisterInventoryServiceHTTPServer(httpSrv, svc)
 	if injector != nil {
 		httpSrv.HandleFunc("/admin/faults", injector.Handler())
 	}
-	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger, extra...)
+	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger, mws)
 
 	// Registro en Consul (si está configurado) con check de readiness.
 	regOpts, _, err := discovery.Setup(cfg.Consul, httpSrv)
@@ -140,6 +162,16 @@ func run() error {
 		slog.String("grpc", cfg.Server.GRPC.Addr),
 		slog.Bool("consul", cfg.Consul.Enabled()),
 		slog.String("weight", weight),
-		slog.Bool("lab_mode", platform.LabMode()))
+		slog.Bool("lab_mode", platform.LabMode()),
+		slog.Bool("telemetry", cfg.Telemetry.Enabled()))
 	return app.Run()
+}
+
+// shutdownTelemetry vacía las trazas y métricas pendientes al terminar.
+func shutdownTelemetry(tel *telemetry.Telemetry, logger *slog.Logger) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := tel.Shutdown(ctx); err != nil {
+		logger.Warn("cierre de telemetría", slog.Any("error", err))
+	}
 }

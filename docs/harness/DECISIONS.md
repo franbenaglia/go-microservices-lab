@@ -40,7 +40,7 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
   observable ni pasa por el breaker de Kratos.
 
 ## ADR-004 — Métricas: OTel → Collector → Prometheus
-**Estado:** Propuesta (Fase 5)
+**Estado:** Reemplazada por ADR-019 (implementada en la Fase 5)
 - **Decisión:** usar el middleware `contrib/otel/v3/metrics` (Server y Client) más métricas
   propias (breaker, retries, instancia) con el SDK de OTel. Se exportan por OTLP al Collector,
   que las publica con el exportador `prometheus` (con `resource_to_telemetry_conversion` para
@@ -182,3 +182,35 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
   (`state_observable=false`), sin inventar una API.
 - **Endpoints de laboratorio** (`/api/orders/lab/*`, `/admin/faults`) solo con `LAB_MODE=true`
   (cumple el "restringidos a desarrollo" de ADR-016). Traefik los filtrará en la Fase 7.
+
+## ADR-019 — Telemetría: OTel SDK → Collector → Jaeger/Prometheus
+**Estado:** Aceptada e implementada (2026-10-16, Fase 5). Sustituye a ADR-004
+- **Decisión:** los servicios exportan trazas y métricas por OTLP/gRPC al Collector
+  (`otel/opentelemetry-collector-contrib:0.162.0`). Las trazas van a Jaeger 2.22 (OTLP) y las
+  métricas al exportador `prometheus` del Collector (:8889, `metric_expiration: 1m`), que Prometheus
+  3.15 lee con `honor_labels`, de modo que `job=service.name` e `instance=service.instance.id`.
+- Middlewares oficiales `contrib/otel/v3` (tracing, metrics) con un histograma propio (1ms–5s).
+  Además: cabecera `X-Trace-Id`, contador por instancia de destino (`selector.Peer`), métricas
+  observables de breaker y retry, métricas de negocio y `service_ready`.
+- Spans de negocio con la API `otel.Tracer` en la capa biz (neutral, no-op sin proveedor) y spans de
+  PostgreSQL con otelpgx (sin parámetros, sin spans de acquire).
+- Logs: el extractor de slog añade `trace_id` y `span_id` solo si hay un span válido. Los logs
+  siguen saliendo por stdout (`docker compose logs`) y no se envían por OTLP.
+- **Alternativas:** el exportador Prometheus en cada servicio (pull directo). Se descarta para tener
+  un único pipeline y no publicar más puertos.
+
+## ADR-020 — Grafana sin datasource Jaeger
+**Estado:** Aceptada (2026-10-16, Fase 5)
+- **Contexto:** Jaeger 2.22 solo sirve `/api/v3` (OTLP JSON), y el datasource Jaeger de Grafana
+  13.2 consulta `/api/services`, que da 404.
+- **Decisión:** no se aprovisiona el datasource. El dashboard enlaza a la UI de Jaeger, y el frontend
+  (Fase 7) usará `X-Trace-Id` para enlazar a `/trace/<id>`. La API v3 sirve también para los scripts
+  (`scripts/lab/trace-tree.jq`).
+- **Alternativa futura:** fijar una versión de Jaeger con la API heredada, o usar Tempo como backend
+  de Grafana.
+
+## ADR-021 — Dashboard de Grafana generado
+**Estado:** Aceptada (2026-10-16, Fase 5)
+- El JSON `deployments/grafana/dashboards/lab-overview.json` se genera con
+  `deployments/grafana/build-dashboard.py` (`make dashboard`). Es más legible y revisable que editar
+  el JSON a mano. Se aprovisiona en modo de solo lectura (`allowUiUpdates: false`).

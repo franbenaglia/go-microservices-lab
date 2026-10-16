@@ -8,6 +8,7 @@ import (
 
 	"github.com/franbenaglia/go-microservices-lab/pkg/discovery"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
+	"github.com/franbenaglia/go-microservices-lab/pkg/telemetry"
 )
 
 // Config es la configuración completa del servicio.
@@ -18,6 +19,7 @@ type Config struct {
 	Log        Log              `json:"log"`
 	Consul     discovery.Config `json:"consul"`
 	Resilience Resilience       `json:"resilience"`
+	Telemetry  telemetry.Config `json:"telemetry"`
 }
 
 // Resilience configura el circuit breaker y los reintentos hacia Inventory.
@@ -120,6 +122,9 @@ func (c *Config) Validate() error {
 		errs = append(errs, errors.New("resilience.retry.attempt_timeout debe ser menor que inventory.timeout"))
 	}
 	if err := c.Consul.Validate(); err != nil {
+		errs = append(errs, err)
+	}
+	if err := c.Telemetry.Validate(); err != nil {
 		errs = append(errs, err)
 	}
 	return errors.Join(errs...)

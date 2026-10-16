@@ -52,22 +52,28 @@ Cada fase termina con: compilar → pruebas → verificación real → resumen �
 - [x] `scripts/lab/resilience.sh` (`make lab-resilience`): sin/con retries, sin/con breaker, ciclo de estados, latencia, p2c vs wrr
 - **Aceptación:** cumplida. 19/19 (A, B y C repetidos 2 veces más: 15/15); regresión smoke 17/17, discovery 10/10, lb 19/19.
 
-## Fase 5 — Observabilidad
-- [ ] OTel SDK (traces + metrics) con `contrib/otel/v3`; W3C tracecontext
-- [ ] Spans de negocio (validación, consulta, reserva) y PostgreSQL (otelpgx)
-- [ ] Collector → Jaeger y exportador Prometheus; Prometheus; Grafana con dashboard aprovisionado
-- [ ] Logs slog con trace_id, servicio, instancia y operación; nivel dinámico
-- [ ] Métricas del breaker (estado, transiciones, rechazos) y de los retries en Prometheus (hoy en /lab/resilience)
-- **Aceptación:** traza completa Gateway→Orders→Inventory→DB en Jaeger; dashboard con datos antes, durante y después del fallo.
+## Fase 5 — Observabilidad ✅ (2026-10-16)
+- [x] OTel SDK (trazas y métricas) con `contrib/otel/v3`; W3C tracecontext; `X-Trace-Id` en las respuestas
+- [x] Spans de negocio (validación, consulta, reserva, finalización, compensación) y de PostgreSQL (otelpgx, sin parámetros)
+- [x] Collector → Jaeger y exportador Prometheus; Prometheus; Grafana con datasource y dashboard aprovisionados (20 paneles, anotaciones del breaker)
+- [x] Logs slog con trace_id/span_id, servicio, instancia y operación
+- [x] Métricas del breaker, retries, distribución por instancia, negocio, readiness, runtime y pool de PostgreSQL
+- [x] `scripts/lab/observability.sh` (`make lab-observability`)
+- **Aceptación:** cumplida. `make lab-observability` 29/29; traza completa Orders→Inventory→PostgreSQL;
+  dashboard verificado visualmente (Playwright); regresión smoke 17, discovery 10, lb 19, resilience 19.
+- Pendiente para la Fase 7: el span de Traefik en la traza (Cliente → Gateway → Orders → Inventory).
+- El nivel de log dinámico queda para la Fase 6 (Consul KV); el `LevelVar` ya existe.
 
 ## Fase 6 — Configuración centralizada
 - [ ] Source `contrib/config/consul/v3` + archivo local como base; seed del KV
 - [ ] Recarga dinámica con validación y `atomic.Pointer` (sin carreras)
+- [ ] Nivel de log dinámico (slog.LevelVar ya creado en platform.NewLogger)
 - [ ] Fallos de laboratorio centralizados en KV (`lab/inventory/faults`) para todas las réplicas
 - [ ] Tabla de parámetros dinámicos y de los que requieren reinicio (docs)
 - **Aceptación:** cambiar el timeout o el umbral del breaker en KV se refleja sin reinicio y los valores inválidos se rechazan.
 
 ## Fase 7 — API Gateway y frontend
+- [ ] Tracing en Traefik (span del gateway en la traza; W3C)
 - [ ] Traefik con el provider consulCatalog, rutas `/api/orders`, `/api/products`, `/api/inventory`, logs de acceso, cabeceras, ipAllowList para admin
 - [ ] Frontend Svelte: Dashboard, Products, Orders, LB Lab, CB Lab, Tracing, Configuration
 - **Aceptación:** todo el uso desde el navegador pasa por Traefik; los labs funcionan de punta a punta.

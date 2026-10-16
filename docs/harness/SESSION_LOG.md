@@ -13,6 +13,29 @@ Entrada por sesión, la más reciente arriba. Plantilla:
 
 ---
 
+## Sesión 2 — 2026-10-16 — Fase 5
+**Hecho:** pkg/telemetry (Setup, middlewares, X-Trace-Id, contador por instancia, service_ready), spans de negocio en
+ambos biz, otelpgx (spans y pool), extractor trace_id en slog, métricas de breaker y retry (observables) y de negocio,
+Collector, Jaeger, Prometheus y Grafana en compose, dashboard generado (build-dashboard.py), scripts/lab/observability.sh,
+scripts/lab/trace-tree.jq, docs/fases/fase-5.md.
+**Verificación:**
+- `make vet`; `make test-integration`: 11 paquetes ok (nuevos tests de telemetry: X-Trace-Id, contador por instancia, traceparent W3C).
+- `make lab-observability` 29/29: traza de 30+ spans Orders→Inventory→PostgreSQL, logs con trace_id en ambos servicios,
+  11 métricas presentes, job/instance correctos, sin etiquetas de IDs, dashboard aprovisionado.
+- Las 20 consultas del dashboard devuelven datos; captura con Playwright tras un episodio de fallo (estados del breaker y anotaciones).
+- Regresión: smoke 17/17, discovery 10/10, lb 19/19, resilience 19/19.
+**Decisiones:** ADR-019 (sustituye a ADR-004), ADR-020, ADR-021.
+**Problemas encontrados:**
+- Jaeger 2.22 sin API heredada → datasource de Grafana eliminado (ADR-020).
+- resource.Merge con schema URL distinta → NewSchemaless.
+- Panel state-timeline: los mapeos por valor no se aplicaban → mapeos por rango.
+- Series de instancias recreadas → metric_expiration 1m.
+- Timeouts de Docker Hub al descargar imágenes → reintentos.
+- El curl de snap tampoco escribe en /tmp; Playwright solo escribe dentro del repo (.playwright-mcp/, en .gitignore).
+**Siguiente:** Fase 6 (configuración centralizada en Consul KV).
+
+---
+
 ## Sesión 1 (continuación 4) — 2026-10-15 — Fase 4
 **Hecho:** pkg/resilience/breaker (adaptador gobreaker v2.4.0), pkg/resilience/retry, services/orders/internal/resilience,
 config `resilience:` en Orders, inyección de fallos en Inventory (internal/lab, /admin/faults), LAB_MODE,

@@ -9,6 +9,8 @@ import (
 	"io/fs"
 	"time"
 
+	"github.com/exaring/otelpgx"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -22,6 +24,8 @@ type Options struct {
 	MaxConnLifetime time.Duration
 	// ConnectAttempts es el número de intentos de conexión inicial (1 por segundo).
 	ConnectAttempts int
+	// Tracer instrumenta las consultas (p. ej. otelpgx). Opcional.
+	Tracer pgx.QueryTracer
 }
 
 // NewPool abre un pool y verifica la conexión antes de devolverlo.
@@ -39,6 +43,9 @@ func NewPool(ctx context.Context, o Options) (*pgxpool.Pool, error) {
 	}
 	if o.ConnectTimeout > 0 {
 		cfg.ConnConfig.ConnectTimeout = o.ConnectTimeout
+	}
+	if o.Tracer != nil {
+		cfg.ConnConfig.Tracer = o.Tracer
 	}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
@@ -80,4 +87,16 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, fsys fs.FS) error {
 		return fmt.Errorf("aplicar migraciones: %w", err)
 	}
 	return nil
+}
+
+// NewTracer devuelve el tracer de OpenTelemetry para pgx: un span por consulta
+// (nombre = operación SQL), sin parámetros (pueden contener datos sensibles) y
+// sin spans de adquisición de conexión (ruido).
+func NewTracer() pgx.QueryTracer {
+	return otelpgx.NewTracer(otelpgx.WithTrimSQLInSpanName(), otelpgx.WithDisableAcquireTracer())
+}
+
+// RecordStats publica métricas del pool (conexiones en uso, ociosas, esperas...).
+func RecordStats(pool *pgxpool.Pool) error {
+	return otelpgx.RecordStats(pool)
 }

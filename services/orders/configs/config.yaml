@@ -52,3 +52,8 @@ resilience:
     idempotent_operations: [GetProduct, CheckAvailability, Diagnose, ReleaseStock]
     # Solo con clave de idempotencia en la petición.
     key_required_operations: [ReserveStock]
+telemetry:
+  # Endpoint OTLP/gRPC del OpenTelemetry Collector. Vacío desactiva la exportación.
+  endpoint: "${OTEL_ENDPOINT:}"
+  sample_ratio: "${OTEL_SAMPLE_RATIO:1.0}"   # laboratorio: se muestrean todas las trazas
+  metric_interval: "${OTEL_METRIC_INTERVAL:5s}"

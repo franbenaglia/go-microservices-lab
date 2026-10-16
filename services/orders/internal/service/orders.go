@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	kerrors "github.com/go-kratos/kratos/v3/errors"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ordersv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1"
@@ -20,6 +22,7 @@ type OrdersService struct {
 
 	uc     *biz.OrderUsecase
 	logger *slog.Logger
+	orders metric.Int64Counter
 }
 
 var (
@@ -27,9 +30,21 @@ var (
 	_ ordersv1.OrdersServiceHTTPServer = (*OrdersService)(nil)
 )
 
-// NewOrdersService construye el servicio.
-func NewOrdersService(uc *biz.OrderUsecase, logger *slog.Logger) *OrdersService {
-	return &OrdersService{uc: uc, logger: logger}
+// NewOrdersService construye el servicio. m publica
+// orders_processed_total{status, rejection_code} (nunca el ID del pedido como etiqueta).
+func NewOrdersService(uc *biz.OrderUsecase, logger *slog.Logger, m metric.Meter) (*OrdersService, error) {
+	c, err := m.Int64Counter("orders_processed_total",
+		metric.WithDescription("Pedidos creados o cancelados por estado resultante y código de rechazo"))
+	if err != nil {
+		return nil, err
+	}
+	return &OrdersService{uc: uc, logger: logger, orders: c}, nil
+}
+
+func (s *OrdersService) count(ctx context.Context, o *biz.Order) {
+	s.orders.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("status", string(o.Status)),
+		attribute.String("rejection_code", o.RejectionCode)))
 }
 
 func (s *OrdersService) CreateOrder(ctx context.Context, req *ordersv1.CreateOrderRequest) (*ordersv1.Order, error) {
@@ -41,6 +56,7 @@ func (s *OrdersService) CreateOrder(ctx context.Context, req *ordersv1.CreateOrd
 	if err != nil {
 		return nil, s.toAPIError(ctx, "CreateOrder", err)
 	}
+	s.count(ctx, o)
 	if o.Status == biz.StatusRejected {
 		s.logger.WarnContext(ctx, "pedido rechazado",
 			slog.String("operation", "CreateOrder"),
@@ -91,6 +107,7 @@ func (s *OrdersService) CancelOrder(ctx context.Context, req *ordersv1.CancelOrd
 	if err != nil {
 		return nil, s.toAPIError(ctx, "CancelOrder", err)
 	}
+	s.count(ctx, o)
 	return toProto(o), nil
 }
 

@@ -1,0 +1,47 @@
+# OpenTelemetry Collector del laboratorio.
+#
+#   servicios ──OTLP/gRPC :4317──► Collector ──OTLP──► Jaeger        (trazas)
+#                                            └──► :8889 /metrics ◄── Prometheus (métricas)
+#
+# El exportador Prometheus traduce service.name → job y service.instance.id → instance.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+  batch:
+    timeout: 2s
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    # Las métricas sin datos nuevos desaparecen al minuto (instancias que ya no existen,
+    # p. ej. un Orders recreado por los laboratorios).
+    metric_expiration: 1m
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/jaeger]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]

@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-kratos/kratos/v3/errors"
 	kgrpc "github.com/go-kratos/kratos/v3/transport/grpc"
+	"go.opentelemetry.io/otel/metric/noop"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -29,9 +30,12 @@ func startServer(t *testing.T) inventoryv1.InventoryServiceClient {
 	pool := pgtest.NewPool(t, migrations.FS)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	id := platform.Identity{Service: "inventory-service", Instance: "test-1", Version: "test"}
-	svc := service.NewInventoryService(biz.NewInventoryUsecase(data.NewProductRepo(pool)), id, logger)
+	svc, err := service.NewInventoryService(biz.NewInventoryUsecase(data.NewProductRepo(pool)), id, logger, noop.NewMeterProvider().Meter("test"))
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	srv := NewGRPCServer(conf.Listener{Addr: "127.0.0.1:0", Timeout: platform.Duration(5 * time.Second)}, svc, logger)
+	srv := NewGRPCServer(conf.Listener{Addr: "127.0.0.1:0", Timeout: platform.Duration(5 * time.Second)}, svc, logger, Middlewares{})
 	endpoint, err := srv.Endpoint()
 	if err != nil {
 		t.Fatal(err)
