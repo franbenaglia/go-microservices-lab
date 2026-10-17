@@ -126,7 +126,7 @@ func run() error {
 	httpSrv := server.NewHTTPServer(cfg.Server.HTTP, health, logger, mws)
 	inventoryv1.RegisterInventoryServiceHTTPServer(httpSrv, svc)
 	if injector != nil {
-		httpSrv.HandleFunc("/admin/faults", injector.Handler())
+		httpSrv.Handle("/admin/faults", tel.WrapHTTP("admin.faults", injector.Handler()))
 	}
 	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger, mws)
 
@@ -161,7 +161,7 @@ func run() error {
 	}
 	defer dyn.Close()
 	if platform.LabMode() {
-		httpSrv.HandleFunc("/admin/config", dyn.Handler(id.Instance, cfg.Static(), conf.RestartRequired))
+		httpSrv.Handle("/admin/config", tel.WrapHTTP("admin.config", dyn.Handler(id.Instance, cfg.Static(), conf.RestartRequired)))
 	}
 
 	// Registro en Consul (si está configurado) con check de readiness.

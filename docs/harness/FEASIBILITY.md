@@ -99,3 +99,14 @@ v2. **Mitigación:** consultar siempre el código fuente del módulo (regla en C
 | jaegertracing/jaeger | 2.22.0 | **solo API /api/v3**; el datasource Jaeger de Grafana no funciona (ADR-020) |
 | prom/prometheus | v3.15.0 | |
 | grafana/grafana | 13.2.4 | |
+
+## Actualización 2026-10-17 (Fase 7)
+
+| Componente | Versión | Nota |
+|---|---|---|
+| traefik | v3.7.15 | providers consulCatalog + file; tracing y métricas OTLP |
+| node (build del frontend) | 24.22.0-alpine | el npm del host (10.8) falla con `edgesOut`; se usa el de la imagen |
+| nginx | 1.31.7-alpine | estáticos del frontend |
+| svelte / vite / @sveltejs/vite-plugin-svelte | 5.57.2 / 8.3.4 / 7.3.1 | |
+| typescript | 6.0.3 | 7.0 es latest, pero svelte-check 4.7.7 requiere ^5 o ^6 |
+| svelte-check / @tsconfig/svelte | 4.7.7 / 5.0.8 | |

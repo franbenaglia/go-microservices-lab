@@ -26,6 +26,25 @@ consul:
   address: "${CONSUL_ADDR:}"
   health_interval: "${CONSUL_HEALTH_INTERVAL:5s}"
   deregister_after: "${CONSUL_DEREGISTER_AFTER:1m}"
+  # Rutas del API Gateway (Traefik, provider consulCatalog). Traefik solo
+  # enruta a las instancias con todos sus checks en passing.
+  tags:
+    - "traefik.enable=true"
+    # API pública de pedidos.
+    - "traefik.http.routers.orders-api.rule=PathPrefix(`/api/orders`)"
+    - "traefik.http.routers.orders-api.entrypoints=web"
+    - "traefik.http.routers.orders-api.middlewares=api-headers@file"
+    # Diagnóstico de laboratorio: solo desde la red local.
+    - "traefik.http.routers.orders-lab.rule=PathPrefix(`/api/orders/lab`)"
+    - "traefik.http.routers.orders-lab.entrypoints=web"
+    - "traefik.http.routers.orders-lab.priority=200"
+    - "traefik.http.routers.orders-lab.middlewares=local-only@file,api-headers@file"
+    # Administración (/admin/orders/config → /admin/config): solo red local.
+    - "traefik.http.routers.orders-admin.rule=PathPrefix(`/admin/orders/`)"
+    - "traefik.http.routers.orders-admin.entrypoints=web"
+    - "traefik.http.routers.orders-admin.middlewares=local-only@file,orders-admin-path,api-headers@file"
+    - "traefik.http.middlewares.orders-admin-path.replacepathregex.regex=^/admin/orders/(.*)"
+    - "traefik.http.middlewares.orders-admin-path.replacepathregex.replacement=/admin/$1"
 resilience:
   breaker:
     enabled: "${BREAKER_ENABLED:true}"
@@ -57,3 +76,6 @@ telemetry:
   endpoint: "${OTEL_ENDPOINT:}"
   sample_ratio: "${OTEL_SAMPLE_RATIO:1.0}"   # laboratorio: se muestrean todas las trazas
   metric_interval: "${OTEL_METRIC_INTERVAL:5s}"
+lab:
+  # Prometheus para el overview del dashboard (consulta desde el servidor).
+  prometheus_url: "${LAB_PROMETHEUS_URL:}"

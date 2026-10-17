@@ -26,7 +26,8 @@ trap cleanup EXIT
 repeats() { jq '[.sequence as $s | range(1; $s|length) | select($s[.] == $s[. - 1])] | length' <<<"$1"; }
 
 step "1. Tres réplicas de Inventory con wrr"
-INVENTORY_BALANCER=wrr docker compose up -d --wait --scale inventory=3 inventory orders >/dev/null 2>&1
+docker compose up -d --wait --scale inventory=3 inventory >/dev/null 2>&1
+orders_with INVENTORY_BALANCER=wrr
 wait_for 60 3 consul_passing $SVC >/dev/null || true
 check "instancias passing" "$(consul_passing $SVC)" 3
 r=$(probe 90); print_probe "$r"
@@ -72,7 +73,7 @@ wait_for 60 3 consul_passing $SVC >/dev/null || true
 
 for b in p2c random wrr; do
   step "4. Selector $b (Orders se reinicia: el selector es global al proceso)"
-  INVENTORY_BALANCER=$b docker compose up -d --wait orders >/dev/null 2>&1
+  orders_with INVENTORY_BALANCER=$b
   r=$(probe 90); print_probe "$r"
   check "balancer activo" "$(jq -r .balancer <<<"$r")" "$b"
   check "usa las 3 instancias" "$(jq '.by_instance|length' <<<"$r")" 3

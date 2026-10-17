@@ -13,6 +13,29 @@ Entrada por sesión, la más reciente arriba. Plantilla:
 
 ---
 
+## Sesión 3 (continuación) — 2026-10-17 — Fase 7
+**Hecho:** Traefik (traefik.yml, dynamic.yml, tags en consul.tags), sin puertos en los microservicios, lib.sh por el
+gateway (incluster, wait_gateway por IP en la API de Traefik), endpoint overview (pkg/promquery + Consul health),
+Telemetry.WrapHTTP para /admin/*, frontend Svelte 5 completo (7 secciones, BarList y gráfico del breaker en SVG),
+Dockerfile node+nginx, fila de Traefik en Grafana, scripts/lab/gateway.sh, objetivos make labs, lab-gateway,
+frontend-check y frontend-dev, docs/fases/fase-7.md.
+**Verificación:**
+- `make vet`; `make test-integration` 13 ok; `make frontend-check` (svelte-check 0 errores y 0 avisos, build ok).
+- `make labs`: smoke 17, discovery 10, lb 19, resilience 19, observability 29, config 28, gateway 21.
+- Playwright: Dashboard, pedido CONFIRMED con traza, LB 10/10/10 (Kratos 0,3ms; Traefik 3,0ms), ciclo del breaker,
+  configuración aplicada sin reinicio (y bloqueada por validación nativa con un valor inválido), Tracing, móvil a 390px.
+- Bajada de escala 3→1 con 300 peticiones por Traefik: 299×200 y 1×504.
+**Decisiones:** ADR-024, ADR-025; ADR-005 y ADR-009 implementadas.
+**Problemas encontrados:**
+- npm del host roto → npm de node:24 en contenedor; TS 7 incompatible con svelte-check → TS 6.0.3.
+- Carrera recreate ↔ Traefik (compose --wait no espera a Consul) → wait_gateway por IP; loadbalancing.sh recreaba Orders sin orders_with.
+- Spans de Traefik llegan en otro lote → observability.sh espera a que aparezcan.
+- IDs cortos de UUIDv7 (prefijo = marca de tiempo) → últimos 8 caracteres; etiquetas de estado solapadas en el SVG → por tramos.
+- Playwright: cambiar solo el hash no recarga.
+**Siguiente:** Fase 8 (validación final y README completo en español).
+
+---
+
 ## Sesión 3 — 2026-10-17 — Fase 6
 **Hecho:** pkg/dynconfig (Manager genérico sobre contrib/config/consul/v3, siembra con CAS, validación todo o nada,
 /admin/config GET/PUT, detección de YAML mal formado, métrica), retry con política atómica (SetPolicy), resiliencia de

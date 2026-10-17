@@ -48,7 +48,7 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
 - **Consecuencias:** un único pipeline de telemetría. Nada de etiquetas con IDs de pedido o usuario.
 
 ## ADR-005 — Traefik descubre servicios vía Consul Catalog
-**Estado:** Propuesta (Fase 7)
+**Estado:** Aceptada e implementada (Fase 7, ver ADR-024)
 - **Decisión:** usar el provider `consulCatalog` de Traefik. Los servicios se registran con tags
   `traefik.*` y Traefik no necesita el socket de Docker.
 - **Alternativa:** el provider Docker, que requiere montar `/var/run/docker.sock`.
@@ -76,7 +76,7 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
   endpoints `/admin/*` quedan restringidos por un `ipAllowList` de Traefik a redes locales.
 
 ## ADR-009 — Frontend
-**Estado:** Propuesta (Fase 7)
+**Estado:** Aceptada e implementada (Fase 7, ver ADR-025)
 - **Decisión:** Svelte 5 + TypeScript + Vite, servido como estático por un contenedor ligero
   detrás de Traefik en `/`. Solo consume `/api/*`.
 
@@ -237,3 +237,28 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
 - Inventory: nivel de log y `lab.faults` para todas las réplicas (se aplica solo si cambian).
 - Los scripts de laboratorio cambian lo dinámico por `/admin/config` (`orders_with` en lib.sh) y
   recrean el contenedor solo para lo que requiere reinicio.
+
+## ADR-024 — API Gateway con Traefik (consulCatalog + file)
+**Estado:** Aceptada e implementada (2026-10-17, Fase 7). Implementa ADR-005
+- Traefik v3.7.15. Provider `consulCatalog` (`exposedByDefault: false`, `strictChecks: [passing]`):
+  las rutas de los servicios son tags `traefik.*` declarados en `consul.tags` de su configuración.
+  Provider `file` para el frontend y los middlewares compartidos (`local-only`, `api-headers`,
+  `security-headers`).
+- Rutas: `/api/orders` y `/api/orders/lab` (local-only) → orders; `/api/products` y `/api/inventory`
+  → inventory; `/admin/<svc>/*` → `/admin/*` (replacepathregex, local-only). `/readyz` y
+  `/admin/faults` no se exponen.
+- Solo Traefik (8080 y dashboard 8090) y las herramientas publican puertos en 127.0.0.1; los
+  microservicios no. Los scripts acceden a réplicas concretas con `docker compose exec consul curl`.
+- Tracing y métricas OTLP de Traefik → Collector. El navegador inicia en Traefik la traza que
+  continúan los servicios.
+
+## ADR-025 — Frontend Svelte sin dependencias de ejecución
+**Estado:** Aceptada e implementada (2026-10-17, Fase 7). Implementa ADR-009
+- Svelte 5.57 + TypeScript 6.0.3 (svelte-check 4.7 no admite TS 7) + Vite 8.3, router por hash y
+  gráficos en SVG propio (sin librerías). Se compila en `node:24.22.0-alpine` (`npm ci && check &&
+  build`) y se sirve con `nginx:1.31.7-alpine` en :8080. Mismo origen que la API: sin CORS.
+- El dashboard usa un endpoint de diagnóstico propio, `GET /api/orders/lab/overview`: Orders consulta
+  Consul (instancias y checks) y Prometheus (`lab.prometheus_url`) desde el servidor. El navegador
+  no accede a la infraestructura ni a sus credenciales.
+- Los fallos del Circuit Breaker Lab se guardan en Consul KV (`/admin/inventory/config`) para que
+  afecten a todas las réplicas.

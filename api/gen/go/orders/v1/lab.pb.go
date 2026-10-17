@@ -26,6 +26,485 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GetOverviewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOverviewRequest) Reset() {
+	*x = GetOverviewRequest{}
+	mi := &file_orders_v1_lab_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOverviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOverviewRequest) ProtoMessage() {}
+
+func (x *GetOverviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_lab_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOverviewRequest.ProtoReflect.Descriptor instead.
+func (*GetOverviewRequest) Descriptor() ([]byte, []int) {
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{0}
+}
+
+type CheckStatus struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Type  string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	// passing | warning | critical
+	Status        string `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckStatus) Reset() {
+	*x = CheckStatus{}
+	mi := &file_orders_v1_lab_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckStatus) ProtoMessage() {}
+
+func (x *CheckStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_lab_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckStatus.ProtoReflect.Descriptor instead.
+func (*CheckStatus) Descriptor() ([]byte, []int) {
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CheckStatus) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CheckStatus) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *CheckStatus) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+type InstanceStatus struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Id      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Address string                 `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	// passing si todos sus checks lo están; si no, el peor estado.
+	Status        string         `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Version       string         `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	Hostname      string         `protobuf:"bytes,5,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	Weight        string         `protobuf:"bytes,6,opt,name=weight,proto3" json:"weight,omitempty"`
+	Checks        []*CheckStatus `protobuf:"bytes,7,rep,name=checks,proto3" json:"checks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstanceStatus) Reset() {
+	*x = InstanceStatus{}
+	mi := &file_orders_v1_lab_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstanceStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstanceStatus) ProtoMessage() {}
+
+func (x *InstanceStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_lab_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstanceStatus.ProtoReflect.Descriptor instead.
+func (*InstanceStatus) Descriptor() ([]byte, []int) {
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *InstanceStatus) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *InstanceStatus) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *InstanceStatus) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *InstanceStatus) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *InstanceStatus) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+func (x *InstanceStatus) GetWeight() string {
+	if x != nil {
+		return x.Weight
+	}
+	return ""
+}
+
+func (x *InstanceStatus) GetChecks() []*CheckStatus {
+	if x != nil {
+		return x.Checks
+	}
+	return nil
+}
+
+type ServiceStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Instances     []*InstanceStatus      `protobuf:"bytes,2,rep,name=instances,proto3" json:"instances,omitempty"`
+	Passing       int32                  `protobuf:"varint,3,opt,name=passing,proto3" json:"passing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServiceStatus) Reset() {
+	*x = ServiceStatus{}
+	mi := &file_orders_v1_lab_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServiceStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServiceStatus) ProtoMessage() {}
+
+func (x *ServiceStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_lab_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServiceStatus.ProtoReflect.Descriptor instead.
+func (*ServiceStatus) Descriptor() ([]byte, []int) {
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ServiceStatus) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ServiceStatus) GetInstances() []*InstanceStatus {
+	if x != nil {
+		return x.Instances
+	}
+	return nil
+}
+
+func (x *ServiceStatus) GetPassing() int32 {
+	if x != nil {
+		return x.Passing
+	}
+	return 0
+}
+
+type ServiceMetrics struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Service          string                 `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
+	Rps              float64                `protobuf:"fixed64,2,opt,name=rps,proto3" json:"rps,omitempty"`
+	ErrorsPerSecond  float64                `protobuf:"fixed64,3,opt,name=errors_per_second,json=errorsPerSecond,proto3" json:"errors_per_second,omitempty"`
+	P95Ms            float64                `protobuf:"fixed64,4,opt,name=p95_ms,json=p95Ms,proto3" json:"p95_ms,omitempty"`
+	RequestsLast_15M float64                `protobuf:"fixed64,5,opt,name=requests_last_15m,json=requestsLast15m,proto3" json:"requests_last_15m,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ServiceMetrics) Reset() {
+	*x = ServiceMetrics{}
+	mi := &file_orders_v1_lab_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServiceMetrics) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServiceMetrics) ProtoMessage() {}
+
+func (x *ServiceMetrics) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_lab_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServiceMetrics.ProtoReflect.Descriptor instead.
+func (*ServiceMetrics) Descriptor() ([]byte, []int) {
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ServiceMetrics) GetService() string {
+	if x != nil {
+		return x.Service
+	}
+	return ""
+}
+
+func (x *ServiceMetrics) GetRps() float64 {
+	if x != nil {
+		return x.Rps
+	}
+	return 0
+}
+
+func (x *ServiceMetrics) GetErrorsPerSecond() float64 {
+	if x != nil {
+		return x.ErrorsPerSecond
+	}
+	return 0
+}
+
+func (x *ServiceMetrics) GetP95Ms() float64 {
+	if x != nil {
+		return x.P95Ms
+	}
+	return 0
+}
+
+func (x *ServiceMetrics) GetRequestsLast_15M() float64 {
+	if x != nil {
+		return x.RequestsLast_15M
+	}
+	return 0
+}
+
+type RecentRejection struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       string                 `protobuf:"bytes,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	RejectionCode string                 `protobuf:"bytes,2,opt,name=rejection_code,json=rejectionCode,proto3" json:"rejection_code,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	At            *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=at,proto3" json:"at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecentRejection) Reset() {
+	*x = RecentRejection{}
+	mi := &file_orders_v1_lab_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecentRejection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecentRejection) ProtoMessage() {}
+
+func (x *RecentRejection) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_lab_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecentRejection.ProtoReflect.Descriptor instead.
+func (*RecentRejection) Descriptor() ([]byte, []int) {
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *RecentRejection) GetOrderId() string {
+	if x != nil {
+		return x.OrderId
+	}
+	return ""
+}
+
+func (x *RecentRejection) GetRejectionCode() string {
+	if x != nil {
+		return x.RejectionCode
+	}
+	return ""
+}
+
+func (x *RecentRejection) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *RecentRejection) GetAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.At
+	}
+	return nil
+}
+
+type Overview struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Services []*ServiceStatus       `protobuf:"bytes,1,rep,name=services,proto3" json:"services,omitempty"`
+	Metrics  []*ServiceMetrics      `protobuf:"bytes,2,rep,name=metrics,proto3" json:"metrics,omitempty"`
+	// Vacío si Prometheus respondió; si no, el motivo (las métricas se omiten).
+	MetricsError     string                 `protobuf:"bytes,3,opt,name=metrics_error,json=metricsError,proto3" json:"metrics_error,omitempty"`
+	RecentRejections []*RecentRejection     `protobuf:"bytes,4,rep,name=recent_rejections,json=recentRejections,proto3" json:"recent_rejections,omitempty"`
+	BreakerState     string                 `protobuf:"bytes,5,opt,name=breaker_state,json=breakerState,proto3" json:"breaker_state,omitempty"`
+	GeneratedAt      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *Overview) Reset() {
+	*x = Overview{}
+	mi := &file_orders_v1_lab_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Overview) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Overview) ProtoMessage() {}
+
+func (x *Overview) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_lab_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Overview.ProtoReflect.Descriptor instead.
+func (*Overview) Descriptor() ([]byte, []int) {
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Overview) GetServices() []*ServiceStatus {
+	if x != nil {
+		return x.Services
+	}
+	return nil
+}
+
+func (x *Overview) GetMetrics() []*ServiceMetrics {
+	if x != nil {
+		return x.Metrics
+	}
+	return nil
+}
+
+func (x *Overview) GetMetricsError() string {
+	if x != nil {
+		return x.MetricsError
+	}
+	return ""
+}
+
+func (x *Overview) GetRecentRejections() []*RecentRejection {
+	if x != nil {
+		return x.RecentRejections
+	}
+	return nil
+}
+
+func (x *Overview) GetBreakerState() string {
+	if x != nil {
+		return x.BreakerState
+	}
+	return ""
+}
+
+func (x *Overview) GetGeneratedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.GeneratedAt
+	}
+	return nil
+}
+
 type GetResilienceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -34,7 +513,7 @@ type GetResilienceRequest struct {
 
 func (x *GetResilienceRequest) Reset() {
 	*x = GetResilienceRequest{}
-	mi := &file_orders_v1_lab_proto_msgTypes[0]
+	mi := &file_orders_v1_lab_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +525,7 @@ func (x *GetResilienceRequest) String() string {
 func (*GetResilienceRequest) ProtoMessage() {}
 
 func (x *GetResilienceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[0]
+	mi := &file_orders_v1_lab_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +538,7 @@ func (x *GetResilienceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResilienceRequest.ProtoReflect.Descriptor instead.
 func (*GetResilienceRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{0}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{7}
 }
 
 type BreakerTransition struct {
@@ -73,7 +552,7 @@ type BreakerTransition struct {
 
 func (x *BreakerTransition) Reset() {
 	*x = BreakerTransition{}
-	mi := &file_orders_v1_lab_proto_msgTypes[1]
+	mi := &file_orders_v1_lab_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -85,7 +564,7 @@ func (x *BreakerTransition) String() string {
 func (*BreakerTransition) ProtoMessage() {}
 
 func (x *BreakerTransition) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[1]
+	mi := &file_orders_v1_lab_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -98,7 +577,7 @@ func (x *BreakerTransition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BreakerTransition.ProtoReflect.Descriptor instead.
 func (*BreakerTransition) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{1}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *BreakerTransition) GetFrom() string {
@@ -155,7 +634,7 @@ type BreakerStatus struct {
 
 func (x *BreakerStatus) Reset() {
 	*x = BreakerStatus{}
-	mi := &file_orders_v1_lab_proto_msgTypes[2]
+	mi := &file_orders_v1_lab_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -167,7 +646,7 @@ func (x *BreakerStatus) String() string {
 func (*BreakerStatus) ProtoMessage() {}
 
 func (x *BreakerStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[2]
+	mi := &file_orders_v1_lab_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -180,7 +659,7 @@ func (x *BreakerStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BreakerStatus.ProtoReflect.Descriptor instead.
 func (*BreakerStatus) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{2}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *BreakerStatus) GetEnabled() bool {
@@ -344,7 +823,7 @@ type RetryStatus struct {
 
 func (x *RetryStatus) Reset() {
 	*x = RetryStatus{}
-	mi := &file_orders_v1_lab_proto_msgTypes[3]
+	mi := &file_orders_v1_lab_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -356,7 +835,7 @@ func (x *RetryStatus) String() string {
 func (*RetryStatus) ProtoMessage() {}
 
 func (x *RetryStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[3]
+	mi := &file_orders_v1_lab_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -369,7 +848,7 @@ func (x *RetryStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryStatus.ProtoReflect.Descriptor instead.
 func (*RetryStatus) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{3}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RetryStatus) GetEnabled() bool {
@@ -476,7 +955,7 @@ type ResilienceStatus struct {
 
 func (x *ResilienceStatus) Reset() {
 	*x = ResilienceStatus{}
-	mi := &file_orders_v1_lab_proto_msgTypes[4]
+	mi := &file_orders_v1_lab_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -488,7 +967,7 @@ func (x *ResilienceStatus) String() string {
 func (*ResilienceStatus) ProtoMessage() {}
 
 func (x *ResilienceStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[4]
+	mi := &file_orders_v1_lab_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -501,7 +980,7 @@ func (x *ResilienceStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResilienceStatus.ProtoReflect.Descriptor instead.
 func (*ResilienceStatus) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{4}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ResilienceStatus) GetBreaker() *BreakerStatus {
@@ -544,7 +1023,7 @@ type ProbeInventoryRequest struct {
 
 func (x *ProbeInventoryRequest) Reset() {
 	*x = ProbeInventoryRequest{}
-	mi := &file_orders_v1_lab_proto_msgTypes[5]
+	mi := &file_orders_v1_lab_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -556,7 +1035,7 @@ func (x *ProbeInventoryRequest) String() string {
 func (*ProbeInventoryRequest) ProtoMessage() {}
 
 func (x *ProbeInventoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[5]
+	mi := &file_orders_v1_lab_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -569,7 +1048,7 @@ func (x *ProbeInventoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProbeInventoryRequest.ProtoReflect.Descriptor instead.
 func (*ProbeInventoryRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{5}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ProbeInventoryRequest) GetCount() int32 {
@@ -596,7 +1075,7 @@ type InstanceCount struct {
 
 func (x *InstanceCount) Reset() {
 	*x = InstanceCount{}
-	mi := &file_orders_v1_lab_proto_msgTypes[6]
+	mi := &file_orders_v1_lab_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -608,7 +1087,7 @@ func (x *InstanceCount) String() string {
 func (*InstanceCount) ProtoMessage() {}
 
 func (x *InstanceCount) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[6]
+	mi := &file_orders_v1_lab_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -621,7 +1100,7 @@ func (x *InstanceCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstanceCount.ProtoReflect.Descriptor instead.
 func (*InstanceCount) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{6}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *InstanceCount) GetInstanceId() string {
@@ -648,7 +1127,7 @@ type ErrorCount struct {
 
 func (x *ErrorCount) Reset() {
 	*x = ErrorCount{}
-	mi := &file_orders_v1_lab_proto_msgTypes[7]
+	mi := &file_orders_v1_lab_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -660,7 +1139,7 @@ func (x *ErrorCount) String() string {
 func (*ErrorCount) ProtoMessage() {}
 
 func (x *ErrorCount) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[7]
+	mi := &file_orders_v1_lab_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -673,7 +1152,7 @@ func (x *ErrorCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorCount.ProtoReflect.Descriptor instead.
 func (*ErrorCount) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{7}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ErrorCount) GetReason() string {
@@ -711,7 +1190,7 @@ type ProbeInventoryResponse struct {
 
 func (x *ProbeInventoryResponse) Reset() {
 	*x = ProbeInventoryResponse{}
-	mi := &file_orders_v1_lab_proto_msgTypes[8]
+	mi := &file_orders_v1_lab_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -723,7 +1202,7 @@ func (x *ProbeInventoryResponse) String() string {
 func (*ProbeInventoryResponse) ProtoMessage() {}
 
 func (x *ProbeInventoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_lab_proto_msgTypes[8]
+	mi := &file_orders_v1_lab_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -736,7 +1215,7 @@ func (x *ProbeInventoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProbeInventoryResponse.ProtoReflect.Descriptor instead.
 func (*ProbeInventoryResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_lab_proto_rawDescGZIP(), []int{8}
+	return file_orders_v1_lab_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ProbeInventoryResponse) GetTotal() int32 {
@@ -806,7 +1285,42 @@ var File_orders_v1_lab_proto protoreflect.FileDescriptor
 
 const file_orders_v1_lab_proto_rawDesc = "" +
 	"\n" +
-	"\x13orders/v1/lab.proto\x12\torders.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x16\n" +
+	"\x13orders/v1/lab.proto\x12\torders.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x14\n" +
+	"\x12GetOverviewRequest\"M\n" +
+	"\vCheckStatus\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\"\xd0\x01\n" +
+	"\x0eInstanceStatus\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x12\x1a\n" +
+	"\bhostname\x18\x05 \x01(\tR\bhostname\x12\x16\n" +
+	"\x06weight\x18\x06 \x01(\tR\x06weight\x12.\n" +
+	"\x06checks\x18\a \x03(\v2\x16.orders.v1.CheckStatusR\x06checks\"v\n" +
+	"\rServiceStatus\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x127\n" +
+	"\tinstances\x18\x02 \x03(\v2\x19.orders.v1.InstanceStatusR\tinstances\x12\x18\n" +
+	"\apassing\x18\x03 \x01(\x05R\apassing\"\xab\x01\n" +
+	"\x0eServiceMetrics\x12\x18\n" +
+	"\aservice\x18\x01 \x01(\tR\aservice\x12\x10\n" +
+	"\x03rps\x18\x02 \x01(\x01R\x03rps\x12*\n" +
+	"\x11errors_per_second\x18\x03 \x01(\x01R\x0ferrorsPerSecond\x12\x15\n" +
+	"\x06p95_ms\x18\x04 \x01(\x01R\x05p95Ms\x12*\n" +
+	"\x11requests_last_15m\x18\x05 \x01(\x01R\x0frequestsLast15m\"\x97\x01\n" +
+	"\x0fRecentRejection\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\tR\aorderId\x12%\n" +
+	"\x0erejection_code\x18\x02 \x01(\tR\rrejectionCode\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12*\n" +
+	"\x02at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\"\xc7\x02\n" +
+	"\bOverview\x124\n" +
+	"\bservices\x18\x01 \x03(\v2\x18.orders.v1.ServiceStatusR\bservices\x123\n" +
+	"\ametrics\x18\x02 \x03(\v2\x19.orders.v1.ServiceMetricsR\ametrics\x12#\n" +
+	"\rmetrics_error\x18\x03 \x01(\tR\fmetricsError\x12G\n" +
+	"\x11recent_rejections\x18\x04 \x03(\v2\x1a.orders.v1.RecentRejectionR\x10recentRejections\x12#\n" +
+	"\rbreaker_state\x18\x05 \x01(\tR\fbreakerState\x12=\n" +
+	"\fgenerated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vgeneratedAt\"\x16\n" +
 	"\x14GetResilienceRequest\"c\n" +
 	"\x11BreakerTransition\x12\x12\n" +
 	"\x04from\x18\x01 \x01(\tR\x04from\x12\x0e\n" +
@@ -877,11 +1391,12 @@ const file_orders_v1_lab_proto_rawDesc = "" +
 	"\x0eavg_latency_ms\x18\x06 \x01(\x01R\favgLatencyMs\x12$\n" +
 	"\x0emax_latency_ms\x18\a \x01(\x01R\fmaxLatencyMs\x12\x1a\n" +
 	"\bsequence\x18\b \x03(\tR\bsequence\x12\x1a\n" +
-	"\bbalancer\x18\t \x01(\tR\bbalancer2\xf5\x01\n" +
+	"\bbalancer\x18\t \x01(\tR\bbalancer2\xda\x02\n" +
 	"\n" +
 	"LabService\x12t\n" +
 	"\x0eProbeInventory\x12 .orders.v1.ProbeInventoryRequest\x1a!.orders.v1.ProbeInventoryResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/api/orders/lab/lb\x12q\n" +
-	"\rGetResilience\x12\x1f.orders.v1.GetResilienceRequest\x1a\x1b.orders.v1.ResilienceStatus\"\"\x82\xd3\xe4\x93\x02\x1c\x12\x1a/api/orders/lab/resilienceBLZJgithub.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1;ordersv1b\x06proto3"
+	"\rGetResilience\x12\x1f.orders.v1.GetResilienceRequest\x1a\x1b.orders.v1.ResilienceStatus\"\"\x82\xd3\xe4\x93\x02\x1c\x12\x1a/api/orders/lab/resilience\x12c\n" +
+	"\vGetOverview\x12\x1d.orders.v1.GetOverviewRequest\x1a\x13.orders.v1.Overview\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/api/orders/lab/overviewBLZJgithub.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1;ordersv1b\x06proto3"
 
 var (
 	file_orders_v1_lab_proto_rawDescOnce sync.Once
@@ -895,35 +1410,51 @@ func file_orders_v1_lab_proto_rawDescGZIP() []byte {
 	return file_orders_v1_lab_proto_rawDescData
 }
 
-var file_orders_v1_lab_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_orders_v1_lab_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_orders_v1_lab_proto_goTypes = []any{
-	(*GetResilienceRequest)(nil),   // 0: orders.v1.GetResilienceRequest
-	(*BreakerTransition)(nil),      // 1: orders.v1.BreakerTransition
-	(*BreakerStatus)(nil),          // 2: orders.v1.BreakerStatus
-	(*RetryStatus)(nil),            // 3: orders.v1.RetryStatus
-	(*ResilienceStatus)(nil),       // 4: orders.v1.ResilienceStatus
-	(*ProbeInventoryRequest)(nil),  // 5: orders.v1.ProbeInventoryRequest
-	(*InstanceCount)(nil),          // 6: orders.v1.InstanceCount
-	(*ErrorCount)(nil),             // 7: orders.v1.ErrorCount
-	(*ProbeInventoryResponse)(nil), // 8: orders.v1.ProbeInventoryResponse
-	(*timestamppb.Timestamp)(nil),  // 9: google.protobuf.Timestamp
+	(*GetOverviewRequest)(nil),     // 0: orders.v1.GetOverviewRequest
+	(*CheckStatus)(nil),            // 1: orders.v1.CheckStatus
+	(*InstanceStatus)(nil),         // 2: orders.v1.InstanceStatus
+	(*ServiceStatus)(nil),          // 3: orders.v1.ServiceStatus
+	(*ServiceMetrics)(nil),         // 4: orders.v1.ServiceMetrics
+	(*RecentRejection)(nil),        // 5: orders.v1.RecentRejection
+	(*Overview)(nil),               // 6: orders.v1.Overview
+	(*GetResilienceRequest)(nil),   // 7: orders.v1.GetResilienceRequest
+	(*BreakerTransition)(nil),      // 8: orders.v1.BreakerTransition
+	(*BreakerStatus)(nil),          // 9: orders.v1.BreakerStatus
+	(*RetryStatus)(nil),            // 10: orders.v1.RetryStatus
+	(*ResilienceStatus)(nil),       // 11: orders.v1.ResilienceStatus
+	(*ProbeInventoryRequest)(nil),  // 12: orders.v1.ProbeInventoryRequest
+	(*InstanceCount)(nil),          // 13: orders.v1.InstanceCount
+	(*ErrorCount)(nil),             // 14: orders.v1.ErrorCount
+	(*ProbeInventoryResponse)(nil), // 15: orders.v1.ProbeInventoryResponse
+	(*timestamppb.Timestamp)(nil),  // 16: google.protobuf.Timestamp
 }
 var file_orders_v1_lab_proto_depIdxs = []int32{
-	9, // 0: orders.v1.BreakerTransition.at:type_name -> google.protobuf.Timestamp
-	1, // 1: orders.v1.BreakerStatus.transitions:type_name -> orders.v1.BreakerTransition
-	2, // 2: orders.v1.ResilienceStatus.breaker:type_name -> orders.v1.BreakerStatus
-	3, // 3: orders.v1.ResilienceStatus.retry:type_name -> orders.v1.RetryStatus
-	6, // 4: orders.v1.ProbeInventoryResponse.by_instance:type_name -> orders.v1.InstanceCount
-	7, // 5: orders.v1.ProbeInventoryResponse.errors:type_name -> orders.v1.ErrorCount
-	5, // 6: orders.v1.LabService.ProbeInventory:input_type -> orders.v1.ProbeInventoryRequest
-	0, // 7: orders.v1.LabService.GetResilience:input_type -> orders.v1.GetResilienceRequest
-	8, // 8: orders.v1.LabService.ProbeInventory:output_type -> orders.v1.ProbeInventoryResponse
-	4, // 9: orders.v1.LabService.GetResilience:output_type -> orders.v1.ResilienceStatus
-	8, // [8:10] is the sub-list for method output_type
-	6, // [6:8] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	1,  // 0: orders.v1.InstanceStatus.checks:type_name -> orders.v1.CheckStatus
+	2,  // 1: orders.v1.ServiceStatus.instances:type_name -> orders.v1.InstanceStatus
+	16, // 2: orders.v1.RecentRejection.at:type_name -> google.protobuf.Timestamp
+	3,  // 3: orders.v1.Overview.services:type_name -> orders.v1.ServiceStatus
+	4,  // 4: orders.v1.Overview.metrics:type_name -> orders.v1.ServiceMetrics
+	5,  // 5: orders.v1.Overview.recent_rejections:type_name -> orders.v1.RecentRejection
+	16, // 6: orders.v1.Overview.generated_at:type_name -> google.protobuf.Timestamp
+	16, // 7: orders.v1.BreakerTransition.at:type_name -> google.protobuf.Timestamp
+	8,  // 8: orders.v1.BreakerStatus.transitions:type_name -> orders.v1.BreakerTransition
+	9,  // 9: orders.v1.ResilienceStatus.breaker:type_name -> orders.v1.BreakerStatus
+	10, // 10: orders.v1.ResilienceStatus.retry:type_name -> orders.v1.RetryStatus
+	13, // 11: orders.v1.ProbeInventoryResponse.by_instance:type_name -> orders.v1.InstanceCount
+	14, // 12: orders.v1.ProbeInventoryResponse.errors:type_name -> orders.v1.ErrorCount
+	12, // 13: orders.v1.LabService.ProbeInventory:input_type -> orders.v1.ProbeInventoryRequest
+	7,  // 14: orders.v1.LabService.GetResilience:input_type -> orders.v1.GetResilienceRequest
+	0,  // 15: orders.v1.LabService.GetOverview:input_type -> orders.v1.GetOverviewRequest
+	15, // 16: orders.v1.LabService.ProbeInventory:output_type -> orders.v1.ProbeInventoryResponse
+	11, // 17: orders.v1.LabService.GetResilience:output_type -> orders.v1.ResilienceStatus
+	6,  // 18: orders.v1.LabService.GetOverview:output_type -> orders.v1.Overview
+	16, // [16:19] is the sub-list for method output_type
+	13, // [13:16] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_lab_proto_init() }
@@ -937,7 +1468,7 @@ func file_orders_v1_lab_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orders_v1_lab_proto_rawDesc), len(file_orders_v1_lab_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

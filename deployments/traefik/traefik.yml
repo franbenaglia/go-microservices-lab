@@ -1,0 +1,63 @@
+# Traefik: API Gateway del laboratorio (configuración estática).
+#
+#   navegador ──► :8080 (web) ──┬─► /api/orders, /api/orders/lab, /admin/orders/*  → orders-service  (consulCatalog)
+#                               ├─► /api/products, /api/inventory, /admin/inventory/* → inventory-service (consulCatalog)
+#                               └─► /  → frontend (provider file)
+#
+# Traefik descubre las instancias en Consul y balancea por HTTP entre las
+# sanas. Es el balanceo EXTERNO; el de Orders → Inventory (gRPC) lo hace el
+# cliente de Kratos.
+entryPoints:
+  web:
+    address: ":8080"
+  traefik:
+    address: ":8090" # dashboard de Traefik y /ping (solo 127.0.0.1 en el host)
+
+api:
+  dashboard: true
+  insecure: true # el dashboard se sirve en el entrypoint "traefik"
+
+ping:
+  entryPoint: traefik
+
+providers:
+  consulCatalog:
+    endpoint:
+      address: consul:8500
+    prefix: traefik
+    exposedByDefault: false
+    watch: true
+    # Solo instancias con todos los checks en passing (readiness incluida).
+    strictChecks: ["passing"]
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+log:
+  level: INFO
+  format: json
+
+accessLog:
+  format: json
+  fields:
+    headers:
+      defaultMode: drop # no registrar cabeceras (podrían llevar datos sensibles)
+
+# Trazas y métricas al OpenTelemetry Collector: Traefik inicia la traza
+# (W3C traceparent) y los servicios la continúan.
+tracing:
+  serviceName: traefik
+  otlp:
+    grpc:
+      endpoint: otel-collector:4317
+      insecure: true
+
+metrics:
+  otlp:
+    serviceName: traefik
+    addRoutersLabels: true
+    addServicesLabels: true
+    pushInterval: 5s
+    grpc:
+      endpoint: otel-collector:4317
+      insecure: true

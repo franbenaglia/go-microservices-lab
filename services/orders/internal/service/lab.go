@@ -8,10 +8,13 @@ import (
 	"time"
 
 	kerrors "github.com/go-kratos/kratos/v3/errors"
+	"github.com/hashicorp/consul/api"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	inventoryv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/inventory/v1"
 	ordersv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1"
+	"github.com/franbenaglia/go-microservices-lab/pkg/promquery"
+	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/biz"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/resilience"
 )
 
@@ -30,6 +33,20 @@ type LabService struct {
 	inventory  inventoryv1.InventoryServiceClient
 	balancer   string
 	resilience *resilience.Resilience
+	consul     *api.Client
+	prom       *promquery.Client
+	orders     *biz.OrderUsecase
+}
+
+// LabDeps son las dependencias del servicio de laboratorio. Consul y
+// Prometheus son opcionales (el overview omite lo que no esté disponible).
+type LabDeps struct {
+	Inventory  inventoryv1.InventoryServiceClient
+	Balancer   string
+	Resilience *resilience.Resilience
+	Consul     *api.Client
+	Prometheus *promquery.Client
+	Orders     *biz.OrderUsecase
 }
 
 var (
@@ -38,8 +55,11 @@ var (
 )
 
 // NewLabService construye el servicio de laboratorio.
-func NewLabService(inv inventoryv1.InventoryServiceClient, balancer string, res *resilience.Resilience) *LabService {
-	return &LabService{inventory: inv, balancer: balancer, resilience: res}
+func NewLabService(d LabDeps) *LabService {
+	return &LabService{
+		inventory: d.Inventory, balancer: d.Balancer, resilience: d.Resilience,
+		consul: d.Consul, prom: d.Prometheus, orders: d.Orders,
+	}
 }
 
 // GetResilience devuelve el estado del breaker y de los reintentos. Solo se

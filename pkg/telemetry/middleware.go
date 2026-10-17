@@ -3,6 +3,7 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	kmetrics "github.com/go-kratos/kratos/contrib/otel/v3/metrics"
 	"github.com/go-kratos/kratos/contrib/otel/v3/tracing"
@@ -10,8 +11,10 @@ import (
 	"github.com/go-kratos/kratos/v3/middleware"
 	"github.com/go-kratos/kratos/v3/selector"
 	"github.com/go-kratos/kratos/v3/transport"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // TraceIDHeader es la cabecera de respuesta con el ID de traza (para el frontend).
@@ -132,4 +135,17 @@ func (t *Telemetry) RegisterReadiness(ready func(context.Context) int64) error {
 		return nil
 	}, g)
 	return err
+}
+
+// WrapHTTP instrumenta un handler HTTP propio (p. ej. /admin/config), que no
+// pasa por los middlewares de Kratos: continúa la traza entrante (W3C, p. ej.
+// de Traefik), crea un span de servidor y devuelve X-Trace-Id.
+func (t *Telemetry) WrapHTTP(operation string, h http.HandlerFunc) http.Handler {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if sc := trace.SpanContextFromContext(r.Context()); sc.IsValid() {
+			w.Header().Set(TraceIDHeader, sc.TraceID().String())
+		}
+		h(w, r)
+	})
+	return otelhttp.NewHandler(inner, operation)
 }

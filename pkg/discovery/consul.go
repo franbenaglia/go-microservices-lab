@@ -39,6 +39,9 @@ type Config struct {
 	// DeregisterAfter elimina del catálogo una instancia que lleva este
 	// tiempo en estado crítico (mínimo 1m en Consul).
 	DeregisterAfter platform.Duration `json:"deregister_after"`
+	// Tags adicionales del registro. Traefik (provider consulCatalog) lee de
+	// aquí sus rutas: traefik.http.routers.<nombre>.rule=...
+	Tags []string `json:"tags"`
 }
 
 // Enabled indica si hay que registrarse en Consul.
@@ -80,6 +83,9 @@ func NewRegistry(c Config, readinessURL string) (*consul.Registry, error) {
 		consul.WithHealthCheckInterval(interval),
 		consul.WithDeregisterCriticalServiceAfter(deregister),
 		consul.WithTimeout(10 * time.Second),
+	}
+	if len(c.Tags) > 0 {
+		opts = append(opts, consul.WithTags(c.Tags))
 	}
 	if readinessURL != "" {
 		opts = append(opts, consul.WithServiceCheck(&api.AgentServiceCheck{

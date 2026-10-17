@@ -54,6 +54,19 @@ ts("Latencia p95 (servidor)",
    16, unit="s", desc="Cuantiles calculados a partir del histograma de latencia.")
 nl()
 
+# --- API Gateway ----------------------------------------------------------------
+row("API Gateway (Traefik)")
+ts("Peticiones por servicio de Traefik",
+   [('sum by (service) (rate(traefik_service_requests_total[1m]))', "{{service}}")], 0, w=8, unit="reqps",
+   desc="Lo que entra por el gateway (navegador, curl): frontend, orders e inventory.")
+ts("Respuestas no 2xx del gateway",
+   [('sum by (service, code) (rate(traefik_service_requests_total{code!~"2.."}[1m]))', "{{service}} {{code}}")], 8, w=8,
+   unit="reqps", desc="Incluye los 403 del ipAllowList (endpoints de laboratorio y admin).")
+ts("Latencia p95 en el gateway",
+   [('histogram_quantile(0.95, sum by (le, service) (rate(traefik_service_request_duration_seconds_bucket[1m])))', "{{service}}")],
+   16, w=8, unit="s", desc="Medida en Traefik: incluye el salto del proxy.")
+nl()
+
 # --- Orders -> Inventory ----------------------------------------------------
 row("Orders → Inventory (cliente gRPC)")
 ts("Llamadas por resultado",
@@ -151,6 +164,7 @@ dashboard = {
         {"title": "Jaeger (trazas)", "url": "http://localhost:16686/search", "type": "link", "icon": "external link", "targetBlank": True},
         {"title": "Consul", "url": "http://localhost:8500/ui", "type": "link", "icon": "external link", "targetBlank": True},
         {"title": "Prometheus", "url": "http://localhost:9090", "type": "link", "icon": "external link", "targetBlank": True},
+        {"title": "Frontend", "url": "http://localhost:8080", "type": "link", "icon": "external link", "targetBlank": True},
     ],
     "panels": panels,
 }

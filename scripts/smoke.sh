@@ -2,13 +2,13 @@
 # Prueba de humo de la Fase 1: recorre el flujo completo de un pedido contra la
 # plataforma en marcha (make up) e informa de cada comprobación.
 #
-# Variables: ORDERS_URL (por defecto http://127.0.0.1:8081)
-#            INVENTORY_URL (por defecto, el puerto efímero de la réplica 1)
+# Variables: GATEWAY_URL (por defecto http://127.0.0.1:8080, Traefik)
 # Requiere: curl, jq.
 set -euo pipefail
 
-ORDERS_URL=${ORDERS_URL:-http://127.0.0.1:8081}
-INVENTORY_URL=${INVENTORY_URL:-http://$(docker compose port --index 1 inventory 8000)}
+GATEWAY_URL=${GATEWAY_URL:-http://127.0.0.1:8080}
+ORDERS_URL=$GATEWAY_URL
+INVENTORY_URL=$GATEWAY_URL
 JSON=(-H 'Content-Type: application/json')
 pass=0 fail=0
 
@@ -21,9 +21,10 @@ check() { # check "descripción" valor_obtenido valor_esperado
 }
 step() { printf '\n\e[1m== %s\e[0m\n' "$1"; }
 
-step "Salud de los servicios"
-check "inventory /readyz" "$(curl -s -o /dev/null -w '%{http_code}' "$INVENTORY_URL/readyz")" 200
-check "orders /readyz" "$(curl -s -o /dev/null -w '%{http_code}' "$ORDERS_URL/readyz")" 200
+step "Salud: instancias passing en Consul (las que Traefik enruta)"
+for s in orders-service inventory-service; do
+  check "$s" "$(curl -s "http://127.0.0.1:8500/v1/health/service/$s?passing=true" | jq 'length > 0')" true
+done
 
 step "Crear producto con 5 unidades"
 sku="SMOKE-$(date +%s)"

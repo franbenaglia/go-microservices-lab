@@ -75,12 +75,16 @@ Cada fase termina con: compilar → pruebas → verificación real → resumen �
 - **Aceptación:** cumplida. `make lab-config` 28/28; regresión smoke 17, discovery 10, lb 19,
   resilience 19, observability 29; 13 paquetes de pruebas en verde.
 
-## Fase 7 — API Gateway y frontend
-- [ ] Tracing en Traefik (span del gateway en la traza; W3C)
-- [ ] Exponer /admin/config y /admin/faults solo desde la red local (frontend: página Configuration)
-- [ ] Traefik con el provider consulCatalog, rutas `/api/orders`, `/api/products`, `/api/inventory`, logs de acceso, cabeceras, ipAllowList para admin
-- [ ] Frontend Svelte: Dashboard, Products, Orders, LB Lab, CB Lab, Tracing, Configuration
-- **Aceptación:** todo el uso desde el navegador pasa por Traefik; los labs funcionan de punta a punta.
+## Fase 7 — API Gateway y frontend ✅ (2026-10-17)
+- [x] Traefik v3.7 con consulCatalog (tags en Consul) + file; rutas /api/orders, /api/products, /api/inventory, /admin/<svc>/*
+- [x] Logs de acceso JSON, cabeceras de seguridad, ipAllowList (local-only) en lab y admin (verificado 403 desde red externa)
+- [x] Tracing y métricas de Traefik (OTLP); traza Cliente → Gateway → Orders → Inventory → PostgreSQL
+- [x] Sin puertos publicados en los microservicios; scripts por el gateway y `docker compose exec consul curl`
+- [x] Endpoint `GET /api/orders/lab/overview` (Consul + Prometheus desde el servidor)
+- [x] Frontend Svelte 5: Dashboard, Productos, Pedidos, LB Lab, CB Lab, Tracing, Configuración (verificado con Playwright, incluida la vista móvil)
+- [x] `/admin/*` instrumentado con otelhttp (X-Trace-Id); fila de Traefik en Grafana
+- [x] `scripts/lab/gateway.sh` (`make lab-gateway`), `make labs`, `make frontend-check`
+- **Aceptación:** cumplida. Gateway 21/21; todos los labs en verde; 13 paquetes de Go; svelte-check 0/0.
 
 ## Fase 8 — Validación final
 - [ ] Batería completa: unit, integración y resiliencia

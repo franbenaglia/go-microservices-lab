@@ -6,11 +6,13 @@
 # Fase 4: resiliencia (BREAKER_*, RETRY_*) e inyección de fallos (LAB_MODE).
 # Fase 5: observabilidad (OTel Collector, Jaeger, Prometheus, Grafana).
 # Fase 6: configuración dinámica en Consul KV (config/<servicio>/dynamic.yaml).
+# Fase 7: API Gateway (Traefik) y frontend.
 # Las credenciales se leen de .env (ver .env.example).
 #
-# Nota: los puertos HTTP de los servicios se publican en 127.0.0.1 de forma
-# temporal para poder probarlos; desaparecen cuando llegue Traefik (Fase 7).
-# Inventory usa un puerto efímero para poder escalarlo (--scale inventory=N).
+# Puertos publicados (solo 127.0.0.1): 8080 gateway (frontend + API), 8090
+# dashboard de Traefik, 8500 Consul, 16686 Jaeger, 9090 Prometheus, 3000
+# Grafana y 55432 PostgreSQL (pruebas de integración). Los microservicios no
+# publican puertos: se accede a ellos a través de Traefik.
 
 name: go-microservices-lab
 
@@ -84,11 +86,6 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
-    # Sin puerto fijo para poder escalar: cada réplica publica su HTTP en un
-    # puerto efímero de 127.0.0.1 (`docker compose port --index N inventory 8000`).
-    # Temporal hasta que Traefik sea el punto de entrada (Fase 7).
-    ports:
-      - "127.0.0.1::8000"
 
   orders:
     <<: *service-defaults
@@ -111,6 +108,8 @@ services:
       APP_BREAKER_KIND: ${BREAKER_KIND:-classic}
       APP_RETRY_ENABLED: ${RETRY_ENABLED:-true}
       APP_LOG_LEVEL: info
+      # Overview del dashboard del frontend (consulta desde Orders, no desde el navegador).
+      APP_LAB_PROMETHEUS_URL: http://prometheus:9090
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,8 +117,36 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+
+  # --- API Gateway y frontend ---
+
+  traefik:
+    image: traefik:v3.7.15
+    restart: unless-stopped
+    command: ["--configFile=/etc/traefik/traefik.yml"]
+    volumes:
+      - ./deployments/traefik:/etc/traefik:ro
     ports:
-      - "127.0.0.1:8081:8000" # temporal (Fase 1)
+      - "127.0.0.1:8080:8080" # frontend + API (punto de entrada único)
+      - "127.0.0.1:8090:8090" # dashboard de Traefik
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--configFile=/etc/traefik/traefik.yml"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      consul:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    networks: [lab]
+
+  frontend:
+    build:
+      context: ./frontend
+    image: go-microservices-lab/frontend:dev
+    restart: unless-stopped
+    networks: [lab]
 
   # --- Observabilidad ---
 

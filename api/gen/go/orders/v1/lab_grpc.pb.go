@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	LabService_ProbeInventory_FullMethodName = "/orders.v1.LabService/ProbeInventory"
 	LabService_GetResilience_FullMethodName  = "/orders.v1.LabService/GetResilience"
+	LabService_GetOverview_FullMethodName    = "/orders.v1.LabService/GetOverview"
 )
 
 // LabServiceClient is the client API for LabService service.
@@ -37,6 +38,11 @@ type LabServiceClient interface {
 	// GetResilience devuelve el estado del circuit breaker, los contadores de
 	// reintentos y la configuración de timeouts del cliente hacia Inventory.
 	GetResilience(ctx context.Context, in *GetResilienceRequest, opts ...grpc.CallOption) (*ResilienceStatus, error)
+	// GetOverview resume el estado de la plataforma para el dashboard del
+	// frontend: instancias y salud (Consul), métricas (Prometheus) y últimos
+	// pedidos rechazados. El navegador no accede directamente a Consul ni a
+	// Prometheus.
+	GetOverview(ctx context.Context, in *GetOverviewRequest, opts ...grpc.CallOption) (*Overview, error)
 }
 
 type labServiceClient struct {
@@ -67,6 +73,16 @@ func (c *labServiceClient) GetResilience(ctx context.Context, in *GetResilienceR
 	return out, nil
 }
 
+func (c *labServiceClient) GetOverview(ctx context.Context, in *GetOverviewRequest, opts ...grpc.CallOption) (*Overview, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Overview)
+	err := c.cc.Invoke(ctx, LabService_GetOverview_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LabServiceServer is the server API for LabService service.
 // All implementations must embed UnimplementedLabServiceServer
 // for forward compatibility.
@@ -78,6 +94,11 @@ type LabServiceServer interface {
 	// GetResilience devuelve el estado del circuit breaker, los contadores de
 	// reintentos y la configuración de timeouts del cliente hacia Inventory.
 	GetResilience(context.Context, *GetResilienceRequest) (*ResilienceStatus, error)
+	// GetOverview resume el estado de la plataforma para el dashboard del
+	// frontend: instancias y salud (Consul), métricas (Prometheus) y últimos
+	// pedidos rechazados. El navegador no accede directamente a Consul ni a
+	// Prometheus.
+	GetOverview(context.Context, *GetOverviewRequest) (*Overview, error)
 	mustEmbedUnimplementedLabServiceServer()
 }
 
@@ -93,6 +114,9 @@ func (UnimplementedLabServiceServer) ProbeInventory(context.Context, *ProbeInven
 }
 func (UnimplementedLabServiceServer) GetResilience(context.Context, *GetResilienceRequest) (*ResilienceStatus, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetResilience not implemented")
+}
+func (UnimplementedLabServiceServer) GetOverview(context.Context, *GetOverviewRequest) (*Overview, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetOverview not implemented")
 }
 func (UnimplementedLabServiceServer) mustEmbedUnimplementedLabServiceServer() {}
 func (UnimplementedLabServiceServer) testEmbeddedByValue()                    {}
@@ -151,6 +175,24 @@ func _LabService_GetResilience_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LabService_GetOverview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOverviewRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LabServiceServer).GetOverview(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LabService_GetOverview_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LabServiceServer).GetOverview(ctx, req.(*GetOverviewRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // LabService_ServiceDesc is the grpc.ServiceDesc for LabService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -165,6 +207,10 @@ var LabService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetResilience",
 			Handler:    _LabService_GetResilience_Handler,
+		},
+		{
+			MethodName: "GetOverview",
+			Handler:    _LabService_GetOverview_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

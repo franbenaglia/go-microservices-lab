@@ -2,7 +2,7 @@
 # Laboratorio de observabilidad (main.md §10, §11 y §14).
 #
 #   1. Un pedido devuelve X-Trace-Id y su traza completa está en Jaeger:
-#      Orders (HTTP) → spans de negocio → cliente gRPC → Inventory (gRPC) → PostgreSQL.
+#      Traefik → Orders (HTTP) → spans de negocio → cliente gRPC → Inventory (gRPC) → PostgreSQL.
 #   2. Los logs de ambos servicios llevan el mismo trace_id.
 #   3. Prometheus tiene las métricas de servidor, cliente, breaker, retries, negocio y salud.
 #   4. Grafana tiene el dashboard aprovisionado.
@@ -12,7 +12,7 @@ source scripts/lab/lib.sh
 JAEGER_URL=${JAEGER_URL:-http://127.0.0.1:16686}
 PROM_URL=${PROM_URL:-http://127.0.0.1:9090}
 GRAFANA_URL=${GRAFANA_URL:-http://127.0.0.1:3000}
-INV="http://$(docker compose port --index 1 inventory 8000)"
+INV=$GATEWAY_URL
 
 step "1. Traza distribuida de un pedido"
 sku="OBS-$(date +%s)"
@@ -25,13 +25,16 @@ info "esperando a que la traza llegue a Jaeger (batch del SDK y del Collector)..
 trace=""
 for _ in $(seq 1 20); do
   trace=$(curl -s "$JAEGER_URL/api/v3/traces/$tid")
-  [[ $(jq '[.result.resourceSpans[]?.scopeSpans[].spans[]] | length' <<<"$trace" 2>/dev/null || echo 0) -ge 20 ]] && break
+  # Cada servicio (y Traefik) exporta su lote por separado: esperar a todos.
+  n=$(jq '[.result.resourceSpans[]?.scopeSpans[].spans[]] | length' <<<"$trace" 2>/dev/null || echo 0)
+  has_traefik=$(jq '[.result.resourceSpans[]?.resource.attributes[] | select(.key=="service.name" and .value.stringValue=="traefik")] | length > 0' <<<"$trace" 2>/dev/null || echo false)
+  [[ $n -ge 20 && $has_traefik == true ]] && break
   sleep 1
 done
 jq -r -f scripts/lab/trace-tree.jq <<<"$trace" | sed 's/^/    /'
 names=$(jq -r '[.result.resourceSpans[].scopeSpans[].spans[].name] | unique | join(",")' <<<"$trace")
 services=$(jq -r '[.result.resourceSpans[].resource.attributes[] | select(.key=="service.name") | .value.stringValue] | unique | join(",")' <<<"$trace")
-check "servicios en la traza" "$services" "inventory-service,orders-service"
+check "servicios en la traza (desde el gateway)" "$services" "inventory-service,orders-service,traefik"
 for n in /orders.v1.OrdersService/CreateOrder order.validate order.price_lookup order.check_availability \
          order.reserve_stock order.finalize /inventory.v1.InventoryService/ReserveStock inventory.reserve_stock UPDATE; do
   check_true "span $n" grep -q -- "$n" <<<"${names//,/$'\n'}"

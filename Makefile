@@ -74,9 +74,27 @@ lab-observability: ## Traza distribuida, logs correlacionados, métricas y dashb
 lab-config: ## Configuración dinámica en Consul KV: cambios en caliente y validación
 	./scripts/lab/config.sh
 
+.PHONY: lab-gateway
+lab-gateway: ## API Gateway: rutas, cabeceras, ipAllowList, balanceo de Traefik, trazas
+	./scripts/lab/gateway.sh
+
+.PHONY: frontend-check
+frontend-check: ## Type-check y build del frontend (en contenedor Node 24)
+	docker run --rm --user "$$(id -u):$$(id -g)" -e HOME=/tmp -v "$$PWD/frontend":/app -w /app node:24.22.0-alpine \
+	  sh -c 'npm ci --no-audit --no-fund && npm run check && npm run build'
+
+.PHONY: frontend-dev
+frontend-dev: ## Servidor de desarrollo de Vite (proxy de /api y /admin al gateway :8080)
+	cd frontend && npm run dev
+
 .PHONY: dashboard
 dashboard: ## Regenera el dashboard de Grafana desde deployments/grafana/build-dashboard.py
 	python3 deployments/grafana/build-dashboard.py
+
+.PHONY: labs
+labs: ## Ejecuta todos los laboratorios en secuencia
+	./scripts/smoke.sh && ./scripts/lab/discovery.sh && ./scripts/lab/loadbalancing.sh && \
+	./scripts/lab/resilience.sh && ./scripts/lab/observability.sh && ./scripts/lab/config.sh && ./scripts/lab/gateway.sh
 
 .PHONY: smoke
 smoke: ## Prueba de humo de la Fase 1 contra la plataforma en marcha

@@ -21,6 +21,14 @@ type Config struct {
 	Consul     discovery.Config `json:"consul"`
 	Resilience Resilience       `json:"resilience"`
 	Telemetry  telemetry.Config `json:"telemetry"`
+	Lab        Lab              `json:"lab"`
+}
+
+// Lab configura los endpoints de diagnóstico (solo con LAB_MODE=true).
+type Lab struct {
+	// PrometheusURL se consulta desde el servidor para el overview del
+	// dashboard (el navegador nunca accede directamente a Prometheus).
+	PrometheusURL string `json:"prometheus_url"`
 }
 
 // Resilience configura el circuit breaker y los reintentos hacia Inventory.
@@ -181,7 +189,7 @@ func (d *Dynamic) Validate() error {
 // RestartRequired enumera los parámetros que solo se aplican al reiniciar.
 var RestartRequired = []string{
 	"server.http.addr", "server.grpc.addr", "server.*.timeout", "data.*", "consul.*", "telemetry.*",
-	"inventory.endpoint", "inventory.balancer", "inventory.compensation_timeout",
+	"inventory.endpoint", "inventory.balancer", "inventory.compensation_timeout", "lab.prometheus_url",
 	"resilience.breaker.kind", "LAB_MODE",
 }
 
@@ -193,5 +201,6 @@ func (c *Config) Static() map[string]any {
 		"breaker":   map[string]string{"kind": c.Resilience.Breaker.Kind},
 		"consul":    c.Consul.Address,
 		"telemetry": c.Telemetry.Endpoint,
+		"lab":       map[string]string{"prometheus_url": c.Lab.PrometheusURL},
 	}
 }

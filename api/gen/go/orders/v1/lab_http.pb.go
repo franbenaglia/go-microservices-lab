@@ -17,10 +17,16 @@ var _ = new(context.Context)
 
 const _ = http.SupportPackageIsVersion3
 
+const OperationLabServiceGetOverview = "/orders.v1.LabService/GetOverview"
 const OperationLabServiceGetResilience = "/orders.v1.LabService/GetResilience"
 const OperationLabServiceProbeInventory = "/orders.v1.LabService/ProbeInventory"
 
 type LabServiceHTTPServer interface {
+	// GetOverview GetOverview resume el estado de la plataforma para el dashboard del
+	// frontend: instancias y salud (Consul), métricas (Prometheus) y últimos
+	// pedidos rechazados. El navegador no accede directamente a Consul ni a
+	// Prometheus.
+	GetOverview(context.Context, *GetOverviewRequest) (*Overview, error)
 	// GetResilience GetResilience devuelve el estado del circuit breaker, los contadores de
 	// reintentos y la configuración de timeouts del cliente hacia Inventory.
 	GetResilience(context.Context, *GetResilienceRequest) (*ResilienceStatus, error)
@@ -34,6 +40,7 @@ func RegisterLabServiceHTTPServer(s *http.Server, srv LabServiceHTTPServer) {
 	r := s.Route("/")
 	r.Handle("POST", "/api/orders/lab/lb", _LabService_ProbeInventory0_HTTP_Handler(srv))
 	r.Handle("GET", "/api/orders/lab/resilience", _LabService_GetResilience0_HTTP_Handler(srv))
+	r.Handle("GET", "/api/orders/lab/overview", _LabService_GetOverview0_HTTP_Handler(srv))
 }
 
 func _LabService_ProbeInventory0_HTTP_Handler(srv LabServiceHTTPServer) func(ctx http.Context) error {
@@ -74,7 +81,31 @@ func _LabService_GetResilience0_HTTP_Handler(srv LabServiceHTTPServer) func(ctx 
 	}
 }
 
+func _LabService_GetOverview0_HTTP_Handler(srv LabServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetOverviewRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationLabServiceGetOverview)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetOverview(ctx, req.(*GetOverviewRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*Overview)
+		return ctx.Result(200, reply)
+	}
+}
+
 type LabServiceHTTPClient interface {
+	// GetOverview GetOverview resume el estado de la plataforma para el dashboard del
+	// frontend: instancias y salud (Consul), métricas (Prometheus) y últimos
+	// pedidos rechazados. El navegador no accede directamente a Consul ni a
+	// Prometheus.
+	GetOverview(ctx context.Context, req *GetOverviewRequest, opts ...http.CallOption) (rsp *Overview, err error)
 	// GetResilience GetResilience devuelve el estado del circuit breaker, los contadores de
 	// reintentos y la configuración de timeouts del cliente hacia Inventory.
 	GetResilience(ctx context.Context, req *GetResilienceRequest, opts ...http.CallOption) (rsp *ResilienceStatus, err error)
@@ -90,6 +121,26 @@ type LabServiceHTTPClientImpl struct {
 
 func NewLabServiceHTTPClient(client *http.Client) LabServiceHTTPClient {
 	return &LabServiceHTTPClientImpl{client}
+}
+
+// GetOverview GetOverview resume el estado de la plataforma para el dashboard del
+// frontend: instancias y salud (Consul), métricas (Prometheus) y últimos
+// pedidos rechazados. El navegador no accede directamente a Consul ni a
+// Prometheus.
+func (c *LabServiceHTTPClientImpl) GetOverview(ctx context.Context, in *GetOverviewRequest, opts ...http.CallOption) (*Overview, error) {
+	var out Overview
+	pattern := "/api/orders/lab/overview"
+	path := http.BuildPath(pattern, in, http.WithQueryParams())
+	opts = append([]http.CallOption{
+		http.Accept("application/protojson"),
+		http.Operation(OperationLabServiceGetOverview),
+		http.PathTemplate(pattern),
+	}, opts...)
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // GetResilience GetResilience devuelve el estado del circuit breaker, los contadores de

@@ -41,8 +41,15 @@ El proceso se documenta en `docs/harness/` para poder retomarlo entre sesiones:
 ## Comandos (se completan a medida que existan)
 
 ```bash
-make help            # lista de objetivos
-make proto           # genera código desde api/proto
-make test            # pruebas unitarias
-make up / make down  # Docker Compose
+make help              # lista de objetivos
+make proto             # genera código desde api/proto (buf vía go tool)
+make vet / make test   # vet + gofmt / pruebas unitarias
+make test-integration  # unitarias + integración (PostgreSQL y Consul de compose)
+make up / make down    # Docker Compose (frontend y API en http://127.0.0.1:8080)
+make labs              # todos los laboratorios (smoke, discovery, lb, resilience, observability, config, gateway)
+make frontend-check    # type-check + build del frontend (en contenedor Node 24)
+make dashboard         # regenera el dashboard de Grafana
 ```
+
+- Frontend: `frontend/` (Svelte 5 + TS 6 + Vite 8). No usar el npm del host (falla): usar el contenedor Node 24.
+- Las pruebas visuales con Playwright guardan capturas en `.playwright-mcp/` (ignorado por git).

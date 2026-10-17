@@ -44,13 +44,13 @@ orders_start=$(started orders)
 step "2. Nivel de log en caliente"
 a=$(applied orders)
 check "PUT log.level=warn" "$(set_config orders '{"log":{"level":"warn"}}')" 202
-wait_for 10 warn bash -c "curl -s $ORDERS_URL/admin/config | jq -r .dynamic.log.level" >/dev/null
+wait_for 10 warn bash -c "curl -s $GATEWAY_URL/admin/orders/config | jq -r .dynamic.log.level" >/dev/null
 check "aplicado por el watcher" "$(get_config orders | jq -r .dynamic.log.level)" warn
 since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 probe 5 >/dev/null
 n_warn=$(docker compose logs --since "$since" --no-log-prefix orders 2>&1 | grep -c '"msg":"server request"' || true)
 set_config orders '{"log":{"level":"info"}}' >/dev/null
-wait_for 10 info bash -c "curl -s $ORDERS_URL/admin/config | jq -r .dynamic.log.level" >/dev/null
+wait_for 10 info bash -c "curl -s $GATEWAY_URL/admin/orders/config | jq -r .dynamic.log.level" >/dev/null
 since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 probe 5 >/dev/null
 n_info=$(docker compose logs --since "$since" --no-log-prefix orders 2>&1 | grep -c '"msg":"server request"' || true)
@@ -93,14 +93,14 @@ check "nada de lo anterior llegó a aplicarse" "$(get_config orders | jq -c .dyn
 
 rej=$(get_config orders | jq .status.rejected)
 curl -s "$CONSUL/v1/kv/config/orders-service/dynamic.yaml?raw" | sed 's/level: "info"/level: "verbose"/' | put_doc orders-service
-wait_for 10 $((rej + 1)) bash -c "curl -s $ORDERS_URL/admin/config | jq .status.rejected" >/dev/null
+wait_for 10 $((rej + 1)) bash -c "curl -s $GATEWAY_URL/admin/orders/config | jq .status.rejected" >/dev/null
 check "edición inválida en Consul: rechazada por el servicio" "$(get_config orders | jq .status.rejected)" $((rej + 1))
 check "se mantiene la configuración anterior" "$(get_config orders | jq -c .dynamic)" "$before"
 info "último error: $(get_config orders | jq -r .status.last_error)"
 
 printf 'log: [sin cerrar\n' | put_doc orders-service
 sleep 1
-check_true "YAML mal formado: GET lo detecta" bash -c "curl -s $ORDERS_URL/admin/config | jq -r .consul_problem | grep -q 'mal formado'"
+check_true "YAML mal formado: GET lo detecta" bash -c "curl -s $GATEWAY_URL/admin/orders/config | jq -r .consul_problem | grep -q 'mal formado'"
 check "y la configuración vigente no cambia" "$(get_config orders | jq -c .dynamic)" "$before"
 check "restaurar con PUT" "$(set_config orders "$before")" 202
 
@@ -108,14 +108,14 @@ step "6. Fallos de laboratorio centralizados (todas las réplicas)"
 docker compose up -d --wait --scale inventory=2 inventory >/dev/null 2>&1
 wait_for 60 2 consul_passing $SVC >/dev/null || true
 check "PUT lab.faults.unavailable=true (Inventory)" "$(set_config inventory '{"lab":{"faults":{"unavailable":true}}}')" 202
-wait_for 10 "true true" bash -c "for u in \$(source scripts/lab/lib.sh; inventory_urls); do curl -s \$u/admin/faults | jq -r .active; done | xargs" >/dev/null || true
-check "ambas réplicas con el fallo activo" \
-  "$(for u in $(inventory_urls); do curl -s "$u/admin/faults" | jq -r .active; done | xargs)" "true true"
+active_all() { for i in 1 2; do faults_of "$i" | jq -r .active; done | xargs; }
+wait_for 10 "true true" active_all >/dev/null || true
+check "ambas réplicas con el fallo activo" "$(active_all)" "true true"
 orders_with BREAKER_ENABLED=false RETRY_ENABLED=false
 r=$(probe 10)
 check "todas las llamadas fallan (FAULT_INJECTED)" "$(jq .failed <<<"$r")" 10
 set_config inventory '{"lab":{"faults":{"unavailable":false}}}' >/dev/null
-wait_for 10 "false false" bash -c "for u in \$(source scripts/lab/lib.sh; inventory_urls); do curl -s \$u/admin/faults | jq -r .active; done | xargs" >/dev/null || true
+wait_for 10 "false false" active_all >/dev/null || true
 r=$(probe 10)
 check "desactivado en KV: ninguna falla" "$(jq .failed <<<"$r")" 0
 

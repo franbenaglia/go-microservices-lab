@@ -1,0 +1,41 @@
+# Traefik: configuración dinámica del provider file (frontend y middlewares
+# compartidos). Las rutas de los microservicios llegan por Consul (tags).
+http:
+  routers:
+    frontend:
+      rule: PathPrefix(`/`)
+      entryPoints: [web]
+      priority: 1
+      service: frontend
+      middlewares: [security-headers]
+
+  services:
+    frontend:
+      loadBalancer:
+        servers:
+          - url: http://frontend:8080
+        healthCheck:
+          path: /healthz
+          interval: 10s
+
+  middlewares:
+    # Endpoints de laboratorio y administración: solo desde redes locales
+    # (localhost y redes privadas; el navegador del host llega desde la puerta
+    # de enlace de la red Docker).
+    local-only:
+      ipAllowList:
+        sourceRange: ["127.0.0.1/32", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+
+    api-headers:
+      headers:
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: same-origin
+        customResponseHeaders:
+          Cache-Control: no-store
+
+    security-headers:
+      headers:
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: same-origin

@@ -19,6 +19,19 @@ consul:
   address: "${CONSUL_ADDR:}"
   health_interval: "${CONSUL_HEALTH_INTERVAL:5s}"
   deregister_after: "${CONSUL_DEREGISTER_AFTER:1m}"
+  # Rutas del API Gateway (Traefik, provider consulCatalog). Traefik balancea
+  # por HTTP entre las réplicas sanas (balanceo externo, distinto del de Kratos).
+  tags:
+    - "traefik.enable=true"
+    - "traefik.http.routers.inventory-api.rule=PathPrefix(`/api/products`) || PathPrefix(`/api/inventory`)"
+    - "traefik.http.routers.inventory-api.entrypoints=web"
+    - "traefik.http.routers.inventory-api.middlewares=api-headers@file"
+    # Administración (/admin/inventory/config → /admin/config): solo red local.
+    - "traefik.http.routers.inventory-admin.rule=PathPrefix(`/admin/inventory/`)"
+    - "traefik.http.routers.inventory-admin.entrypoints=web"
+    - "traefik.http.routers.inventory-admin.middlewares=local-only@file,inventory-admin-path,api-headers@file"
+    - "traefik.http.middlewares.inventory-admin-path.replacepathregex.regex=^/admin/inventory/(.*)"
+    - "traefik.http.middlewares.inventory-admin-path.replacepathregex.replacement=/admin/$1"
 telemetry:
   # Endpoint OTLP/gRPC del OpenTelemetry Collector. Vacío desactiva la exportación.
   endpoint: "${OTEL_ENDPOINT:}"

@@ -21,6 +21,7 @@ import (
 	"github.com/franbenaglia/go-microservices-lab/pkg/dynconfig"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
 	"github.com/franbenaglia/go-microservices-lab/pkg/postgres"
+	"github.com/franbenaglia/go-microservices-lab/pkg/promquery"
 	"github.com/franbenaglia/go-microservices-lab/pkg/telemetry"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/biz"
 	"github.com/franbenaglia/go-microservices-lab/services/orders/internal/conf"
@@ -160,18 +161,25 @@ func run() error {
 		return err
 	}
 	ordersv1.RegisterOrdersServiceHTTPServer(httpSrv, svc)
+	consulClient, err := discovery.NewClient(cfg.Consul)
+	if err != nil {
+		return err
+	}
 	// Endpoints de diagnóstico (/api/orders/lab/*) solo en modo laboratorio.
 	if platform.LabMode() {
-		lab := service.NewLabService(invClient, cfg.Inventory.Balancer, res)
+		var prom *promquery.Client
+		if cfg.Lab.PrometheusURL != "" {
+			prom = promquery.New(cfg.Lab.PrometheusURL)
+		}
+		lab := service.NewLabService(service.LabDeps{
+			Inventory: invClient, Balancer: cfg.Inventory.Balancer, Resilience: res,
+			Consul: consulClient, Prometheus: prom, Orders: uc,
+		})
 		ordersv1.RegisterLabServiceHTTPServer(httpSrv, lab)
 	}
 
 	// Configuración dinámica (Consul KV): nivel de log, timeout de las llamadas,
 	// breaker y retry. Cada cambio se valida completo antes de aplicarse.
-	consulClient, err := discovery.NewClient(cfg.Consul)
-	if err != nil {
-		return err
-	}
 	dyn, err := dynconfig.New(dynconfig.Options[conf.Dynamic]{
 		Service:  ServiceName,
 		Client:   consulClient,
@@ -199,7 +207,7 @@ func run() error {
 	}
 	defer dyn.Close()
 	if platform.LabMode() {
-		httpSrv.HandleFunc("/admin/config", dyn.Handler(id.Instance, cfg.Static(), conf.RestartRequired))
+		httpSrv.Handle("/admin/config", tel.WrapHTTP("admin.config", dyn.Handler(id.Instance, cfg.Static(), conf.RestartRequired)))
 	}
 	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger, serverTel)
 

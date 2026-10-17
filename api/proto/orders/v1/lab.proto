@@ -25,6 +25,65 @@ service LabService {
   rpc GetResilience(GetResilienceRequest) returns (ResilienceStatus) {
     option (google.api.http) = {get: "/api/orders/lab/resilience"};
   }
+
+  // GetOverview resume el estado de la plataforma para el dashboard del
+  // frontend: instancias y salud (Consul), métricas (Prometheus) y últimos
+  // pedidos rechazados. El navegador no accede directamente a Consul ni a
+  // Prometheus.
+  rpc GetOverview(GetOverviewRequest) returns (Overview) {
+    option (google.api.http) = {get: "/api/orders/lab/overview"};
+  }
+}
+
+message GetOverviewRequest {}
+
+message CheckStatus {
+  string name = 1;
+  string type = 2;
+  // passing | warning | critical
+  string status = 3;
+}
+
+message InstanceStatus {
+  string id = 1;
+  string address = 2;
+  // passing si todos sus checks lo están; si no, el peor estado.
+  string status = 3;
+  string version = 4;
+  string hostname = 5;
+  string weight = 6;
+  repeated CheckStatus checks = 7;
+}
+
+message ServiceStatus {
+  string name = 1;
+  repeated InstanceStatus instances = 2;
+  int32 passing = 3;
+}
+
+message ServiceMetrics {
+  string service = 1;
+  double rps = 2;
+  double errors_per_second = 3;
+  double p95_ms = 4;
+  double requests_last_15m = 5;
+}
+
+message RecentRejection {
+  string order_id = 1;
+  string rejection_code = 2;
+  string reason = 3;
+  google.protobuf.Timestamp at = 4;
+}
+
+message Overview {
+  repeated ServiceStatus services = 1;
+  repeated ServiceMetrics metrics = 2;
+  // Vacío si Prometheus respondió; si no, el motivo (las métricas se omiten).
+  string metrics_error = 3;
+  repeated RecentRejection recent_rejections = 4;
+  string breaker_state = 5;
+  google.protobuf.Timestamp generated_at = 6;
 }
 
 message GetResilienceRequest {}
