@@ -75,3 +75,8 @@ func traceAttrs(ctx context.Context) []slog.Attr {
 		slog.String("span_id", sc.SpanID().String()),
 	}
 }
+
+// ValidateLogLevel comprueba un nivel sin aplicarlo.
+func ValidateLogLevel(level string) error {
+	return SetLogLevel(new(slog.LevelVar), level)
+}

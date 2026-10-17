@@ -214,3 +214,26 @@ Estado: `Propuesta` (pendiente de validar en la fase correspondiente), `Aceptada
 - El JSON `deployments/grafana/dashboards/lab-overview.json` se genera con
   `deployments/grafana/build-dashboard.py` (`make dashboard`). Es más legible y revisable que editar
   el JSON a mano. Se aprovisiona en modo de solo lectura (`allowUiUpdates: false`).
+
+## ADR-022 — Configuración dinámica con la fuente Consul de Kratos
+**Estado:** Aceptada e implementada (2026-10-17, Fase 6)
+- **Decisión:** `pkg/dynconfig.Manager[T]` usa `contrib/config/consul/v3` + `config.Watch` sobre un único
+  documento YAML por servicio (`config/<svc>/dynamic.yaml`). Ante cada aviso relee el documento entero,
+  lo valida (`Validate(prev, next)`) y lo aplica (`Apply(prev, next)`) bajo un mutex. Lo vigente se
+  guarda en `atomic.Pointer`. Si no es válido se rechaza completo.
+- **Siembra** con CAS (índice 0) desde los valores de arranque. **Escritura** por `PUT /admin/config`
+  (JSON parcial + `DisallowUnknownFields` + validación) que guarda el documento completo.
+- **Prioridad:** KV > archivo/entorno para los parámetros dinámicos; el entorno solo siembra.
+- **Alternativas:** una clave por parámetro (más avisos, sin atomicidad entre parámetros
+  relacionados, como timeout y attempt_timeout); `consul watch` propio (se descarta porque el
+  requisito es usar el proveedor de Kratos).
+
+## ADR-023 — Qué es dinámico y cómo se aplica
+**Estado:** Aceptada (2026-10-17, Fase 6)
+- Orders: nivel de log, `inventory.timeout` (middleware de deadline propio en lugar del
+  `grpc.WithTimeout` fijo de Kratos, ahora con valor 0), retry (`Retrier.SetPolicy` atómico) y breaker
+  (envoltorio `switchable`: enabled atómico; con umbrales nuevos se crea un breaker nuevo en CLOSED,
+  solo si cambian). `breaker.kind` sale del documento dinámico (`Breaker{Kind; BreakerParams}`).
+- Inventory: nivel de log y `lab.faults` para todas las réplicas (se aplica solo si cambian).
+- Los scripts de laboratorio cambian lo dinámico por `/admin/config` (`orders_with` en lib.sh) y
+  recrean el contenedor solo para lo que requiere reinicio.

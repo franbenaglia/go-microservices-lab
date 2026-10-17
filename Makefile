@@ -70,6 +70,10 @@ lab-resilience: ## Escenarios de resiliencia: retries, breaker, timeouts (args: 
 lab-observability: ## Traza distribuida, logs correlacionados, métricas y dashboard
 	./scripts/lab/observability.sh
 
+.PHONY: lab-config
+lab-config: ## Configuración dinámica en Consul KV: cambios en caliente y validación
+	./scripts/lab/config.sh
+
 .PHONY: dashboard
 dashboard: ## Regenera el dashboard de Grafana desde deployments/grafana/build-dashboard.py
 	python3 deployments/grafana/build-dashboard.py

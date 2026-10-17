@@ -123,6 +123,16 @@ ts("Goroutines y conexiones a PostgreSQL",
     ('sum by (job, instance) (pgxpool_acquired_connections)', "pg en uso {{job}} {{instance}}")], 16)
 nl()
 
+# --- Configuración ----------------------------------------------------------------
+row("Configuración dinámica (Consul KV)")
+ts("Recargas de configuración",
+   [('sum by (job, result) (increase(config_reloads_total[1m]))', "{{job}} {{result}}")], 0, w=12,
+   desc="applied = documento válido aplicado; rejected = documento inválido (se mantiene el anterior).")
+ts("Latencia de las llamadas a Inventory (p95)",
+   [('histogram_quantile(0.95, sum by (le) (rate(client_requests_seconds_bucket{job="orders-service"}[1m])))', "p95")],
+   12, w=12, unit="s", desc="Refleja en caliente los cambios de inventory.timeout.")
+nl()
+
 dashboard = {
     "uid": "lab-overview",
     "title": "Go Microservices Lab — Visión general",

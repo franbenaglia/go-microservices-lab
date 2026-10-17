@@ -115,6 +115,8 @@ github.com/go-kratos/kratos/cmd/protoc-gen-go-errors/v3 v3.0.0-20260626125723-66
 github.com/go-kratos/kratos/cmd/protoc-gen-go-errors/v3 v3.0.0-20260626125723-668db92c2c00/go.mod h1:vY7c3BMKGQWq1U3HSJVZJkrZr5R2nl2DlDJyIJ4RWYw=
 github.com/go-kratos/kratos/cmd/protoc-gen-go-http/v3 v3.0.0-20260626125723-668db92c2c00 h1:rYDnZOxc9RSNLuodBNLfTe1odrEG8K1s9paiw1IHJdg=
 github.com/go-kratos/kratos/cmd/protoc-gen-go-http/v3 v3.0.0-20260626125723-668db92c2c00/go.mod h1:RGZtB27P0RHKnUjghZEjoZM3HqN1lzNWT7FEXoXVTp8=
+github.com/go-kratos/kratos/contrib/config/consul/v3 v3.0.0-20260626125723-668db92c2c00 h1:yHSSkzciCgkw8KzzykFprTLU6lLI75+azgZQXOBRSWU=
+github.com/go-kratos/kratos/contrib/config/consul/v3 v3.0.0-20260626125723-668db92c2c00/go.mod h1:jDURyzpBy212T1r4+//OgrbZdkLsaosxbx3reX2+yT0=
 github.com/go-kratos/kratos/contrib/otel/v3 v3.0.0-20260626125723-668db92c2c00 h1:n3ibYXmSD/XR5CksdtI74dD5aBLoWzRMdZVSu4G47xg=
 github.com/go-kratos/kratos/contrib/otel/v3 v3.0.0-20260626125723-668db92c2c00/go.mod h1:hT2QNZ/0DPOvRqVqxoBBL/aMCOHhbbWh92mF87DBiCU=
 github.com/go-kratos/kratos/contrib/registry/consul/v3 v3.0.0-20260626125723-668db92c2c00 h1:/wGA5rPreuDMVFyV5DkRyYapx6j5N4j7ueVdHslzAc4=

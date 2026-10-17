@@ -23,6 +23,7 @@ import (
 	"errors"
 	"log/slog"
 	"math/rand/v2"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -74,23 +75,41 @@ type Stats struct {
 	NotRetryable uint64 `json:"not_retryable"` // fallos que no se reintentaron por la política
 }
 
-// Retrier aplica la política y lleva estadísticas.
-type Retrier struct {
+// compiled es una política lista para usar (con los conjuntos precalculados).
+type compiled struct {
 	policy      Policy
 	idempotent  map[string]bool
 	keyRequired map[string]bool
-	logger      *slog.Logger
+}
+
+// Retrier aplica la política y lleva estadísticas. La política se puede
+// cambiar en caliente (SetPolicy): cada llamada lee la vigente de forma atómica.
+type Retrier struct {
+	cur    atomic.Pointer[compiled]
+	logger *slog.Logger
 
 	calls, attempts, retries, recovered, exhausted, notRetryable atomic.Uint64
 }
 
 // New crea el retrier.
 func New(p Policy, logger *slog.Logger) (*Retrier, error) {
-	if err := p.Validate(); err != nil {
+	r := &Retrier{logger: logger}
+	if err := r.SetPolicy(p); err != nil {
 		return nil, err
 	}
-	r := &Retrier{policy: p, idempotent: set(p.Idempotent), keyRequired: set(p.KeyRequired), logger: logger}
 	return r, nil
+}
+
+// SetPolicy valida y aplica una política nueva. Las llamadas en curso terminan
+// con la política con la que empezaron.
+func (r *Retrier) SetPolicy(p Policy) error {
+	if err := p.Validate(); err != nil {
+		return err
+	}
+	p.Idempotent = slices.Clone(p.Idempotent)
+	p.KeyRequired = slices.Clone(p.KeyRequired)
+	r.cur.Store(&compiled{policy: p, idempotent: set(p.Idempotent), keyRequired: set(p.KeyRequired)})
+	return nil
 }
 
 func set(xs []string) map[string]bool {
@@ -101,8 +120,8 @@ func set(xs []string) map[string]bool {
 	return m
 }
 
-// Policy devuelve la política configurada.
-func (r *Retrier) Policy() Policy { return r.policy }
+// Policy devuelve la política vigente.
+func (r *Retrier) Policy() Policy { return r.cur.Load().policy }
 
 // Stats devuelve los contadores.
 func (r *Retrier) Stats() Stats {
@@ -115,12 +134,12 @@ func (r *Retrier) Stats() Stats {
 type idempotencyKeyer interface{ GetIdempotencyKey() string }
 
 // safe indica si la operación se puede reintentar para esta petición.
-func (r *Retrier) safe(operation string, req any) bool {
+func (c *compiled) safe(operation string, req any) bool {
 	method := operation[strings.LastIndex(operation, "/")+1:]
-	if r.idempotent[method] {
+	if c.idempotent[method] {
 		return true
 	}
-	if r.keyRequired[method] {
+	if c.keyRequired[method] {
 		k, ok := req.(idempotencyKeyer)
 		return ok && k.GetIdempotencyKey() != ""
 	}
@@ -152,7 +171,8 @@ func (p Policy) Backoff(n int) time.Duration {
 func (r *Retrier) Middleware() middleware.Middleware {
 	return func(next middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req any) (any, error) {
-			if !r.policy.Enabled {
+			c := r.cur.Load()
+			if !c.policy.Enabled {
 				return next(ctx, req)
 			}
 			r.calls.Add(1)
@@ -166,24 +186,24 @@ func (r *Retrier) Middleware() middleware.Middleware {
 			)
 			for attempt := 1; ; attempt++ {
 				r.attempts.Add(1)
-				reply, err = r.attempt(ctx, next, req)
+				reply, err = c.attempt(ctx, next, req)
 				if err == nil {
 					if attempt > 1 {
 						r.recovered.Add(1)
 					}
 					return reply, nil
 				}
-				if !retryable(err) || !r.safe(op, req) {
+				if !retryable(err) || !c.safe(op, req) {
 					if retryable(err) {
 						r.notRetryable.Add(1)
 					}
 					return reply, err
 				}
-				if attempt >= r.policy.MaxAttempts || ctx.Err() != nil {
+				if attempt >= c.policy.MaxAttempts || ctx.Err() != nil {
 					r.exhausted.Add(1)
 					return reply, err
 				}
-				wait := r.policy.Backoff(attempt)
+				wait := c.policy.Backoff(attempt)
 				if dl, ok := ctx.Deadline(); ok && time.Until(dl) < wait+minAttemptBudget {
 					r.exhausted.Add(1)
 					return reply, err // no queda presupuesto: se respeta el deadline original
@@ -205,11 +225,11 @@ func (r *Retrier) Middleware() middleware.Middleware {
 	}
 }
 
-func (r *Retrier) attempt(ctx context.Context, next middleware.Handler, req any) (any, error) {
-	if r.policy.AttemptTimeout <= 0 {
+func (c *compiled) attempt(ctx context.Context, next middleware.Handler, req any) (any, error) {
+	if c.policy.AttemptTimeout <= 0 {
 		return next(ctx, req)
 	}
-	actx, cancel := context.WithTimeout(ctx, r.policy.AttemptTimeout)
+	actx, cancel := context.WithTimeout(ctx, c.policy.AttemptTimeout)
 	defer cancel()
 	return next(actx, req)
 }

@@ -67,11 +67,9 @@ func NewRegistry(c Config, readinessURL string) (*consul.Registry, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
-	cfg := api.DefaultConfig()
-	cfg.Address = c.Address
-	client, err := api.NewClient(cfg)
+	client, err := NewClient(c)
 	if err != nil {
-		return nil, fmt.Errorf("cliente consul: %w", err)
+		return nil, err
 	}
 	interval := seconds(c.HealthInterval.Std())
 	deregister := seconds(c.DeregisterAfter.Std())
@@ -126,4 +124,19 @@ func Setup(c Config, httpSrv transport.Endpointer) ([]kratos.Option, *consul.Reg
 		kratos.Registrar(reg),
 		kratos.RegistrarTimeout(5 * time.Second),
 	}, reg, nil
+}
+
+// NewClient crea un cliente de la API de Consul (registro, KV...). Devuelve
+// nil sin error si Consul no está configurado.
+func NewClient(c Config) (*api.Client, error) {
+	if !c.Enabled() {
+		return nil, nil
+	}
+	cfg := api.DefaultConfig()
+	cfg.Address = c.Address
+	client, err := api.NewClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("cliente consul: %w", err)
+	}
+	return client, nil
 }

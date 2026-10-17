@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/go-kratos/kratos/v3"
@@ -16,6 +17,7 @@ import (
 
 	inventoryv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/inventory/v1"
 	"github.com/franbenaglia/go-microservices-lab/pkg/discovery"
+	"github.com/franbenaglia/go-microservices-lab/pkg/dynconfig"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
 	"github.com/franbenaglia/go-microservices-lab/pkg/postgres"
 	"github.com/franbenaglia/go-microservices-lab/pkg/telemetry"
@@ -60,7 +62,7 @@ func run() error {
 	}
 
 	id := platform.Identity{Service: ServiceName, Instance: platform.InstanceID(ServiceName), Version: Version}
-	logger, _, err := platform.NewLogger(id, cfg.Log.Level)
+	logger, logLevel, err := platform.NewLogger(id, cfg.Log.Level)
 	if err != nil {
 		return err
 	}
@@ -127,6 +129,40 @@ func run() error {
 		httpSrv.HandleFunc("/admin/faults", injector.Handler())
 	}
 	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger, mws)
+
+	// Configuración dinámica (Consul KV): nivel de log y, en modo laboratorio,
+	// los fallos simulados para TODAS las réplicas. Los fallos solo se aplican
+	// si cambian en el documento, para no pisar un ajuste hecho por /admin/faults
+	// en una réplica concreta al cambiar otro parámetro.
+	consulClient, err := discovery.NewClient(cfg.Consul)
+	if err != nil {
+		return err
+	}
+	dyn, err := dynconfig.New(dynconfig.Options[conf.Dynamic]{
+		Service:  ServiceName,
+		Client:   consulClient,
+		Defaults: cfg.Dynamic(),
+		Validate: func(_, next *conf.Dynamic) error { return next.Validate() },
+		Apply: func(prev, next *conf.Dynamic) {
+			_ = platform.SetLogLevel(logLevel, next.Log.Level) // ya validado
+			if injector != nil && !reflect.DeepEqual(prev.Lab.Faults, next.Lab.Faults) {
+				_ = injector.Set(next.Lab.Faults) // ya validado
+				logger.Warn("fallos de laboratorio actualizados desde Consul KV", slog.Any("faults", next.Lab.Faults))
+			}
+		},
+		Logger: logger,
+		Meter:  tel.Meter,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dyn.Start(initCtx); err != nil {
+		return fmt.Errorf("configuración dinámica: %w", err)
+	}
+	defer dyn.Close()
+	if platform.LabMode() {
+		httpSrv.HandleFunc("/admin/config", dyn.Handler(id.Instance, cfg.Static(), conf.RestartRequired))
+	}
 
 	// Registro en Consul (si está configurado) con check de readiness.
 	regOpts, _, err := discovery.Setup(cfg.Consul, httpSrv)

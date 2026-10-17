@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/franbenaglia/go-microservices-lab/pkg/discovery"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
@@ -28,10 +29,16 @@ type Resilience struct {
 	Retry   Retry   `json:"retry"`
 }
 
-// Breaker configura el circuit breaker (ver pkg/resilience/breaker).
+// Breaker configura el circuit breaker (ver pkg/resilience/breaker). Kind
+// requiere reinicio; los parámetros (BreakerParams) son dinámicos.
 type Breaker struct {
+	Kind string `json:"kind"` // classic | sre
+	BreakerParams
+}
+
+// BreakerParams son los parámetros del breaker que se pueden cambiar en caliente.
+type BreakerParams struct {
 	Enabled             bool              `json:"enabled"`
-	Kind                string            `json:"kind"` // classic | sre
 	FailureRatio        float64           `json:"failure_ratio"`
 	MinRequests         uint32            `json:"min_requests"`
 	ConsecutiveFailures uint32            `json:"consecutive_failures"`
@@ -128,4 +135,63 @@ func (c *Config) Validate() error {
 		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
+}
+
+// Dynamic son los parámetros que se pueden cambiar en caliente desde Consul KV
+// (config/orders-service/dynamic.yaml). El resto requiere reinicio.
+type Dynamic struct {
+	Log        Log               `json:"log"`
+	Inventory  DynamicInventory  `json:"inventory"`
+	Resilience DynamicResilience `json:"resilience"`
+}
+
+// DynamicResilience es la resiliencia sin breaker.kind (requiere reinicio).
+type DynamicResilience struct {
+	Breaker BreakerParams `json:"breaker"`
+	Retry   Retry         `json:"retry"`
+}
+
+// DynamicInventory es la parte dinámica del cliente de Inventory.
+type DynamicInventory struct {
+	// Timeout es el presupuesto total por llamada (incluye reintentos).
+	Timeout platform.Duration `json:"timeout"`
+}
+
+// Dynamic devuelve los valores de arranque de los parámetros dinámicos.
+func (c *Config) Dynamic() Dynamic {
+	return Dynamic{
+		Log:        c.Log,
+		Inventory:  DynamicInventory{Timeout: c.Inventory.Timeout},
+		Resilience: DynamicResilience{Breaker: c.Resilience.Breaker.BreakerParams, Retry: c.Resilience.Retry},
+	}
+}
+
+// Validate comprueba la parte que no depende de otros componentes.
+func (d *Dynamic) Validate() error {
+	var errs []error
+	if err := platform.ValidateLogLevel(d.Log.Level); err != nil {
+		errs = append(errs, err)
+	}
+	if t := d.Inventory.Timeout.Std(); t <= 0 || t > 30*time.Second {
+		errs = append(errs, errors.New("inventory.timeout debe estar entre 0 y 30s"))
+	}
+	return errors.Join(errs...)
+}
+
+// RestartRequired enumera los parámetros que solo se aplican al reiniciar.
+var RestartRequired = []string{
+	"server.http.addr", "server.grpc.addr", "server.*.timeout", "data.*", "consul.*", "telemetry.*",
+	"inventory.endpoint", "inventory.balancer", "inventory.compensation_timeout",
+	"resilience.breaker.kind", "LAB_MODE",
+}
+
+// Static devuelve la configuración de arranque sin secretos (sin DSN).
+func (c *Config) Static() map[string]any {
+	return map[string]any{
+		"server":    map[string]string{"http": c.Server.HTTP.Addr, "grpc": c.Server.GRPC.Addr},
+		"inventory": map[string]string{"endpoint": c.Inventory.Endpoint, "balancer": c.Inventory.Balancer, "compensation_timeout": c.Inventory.CompensationTimeout.Std().String()},
+		"breaker":   map[string]string{"kind": c.Resilience.Breaker.Kind},
+		"consul":    c.Consul.Address,
+		"telemetry": c.Telemetry.Endpoint,
+	}
 }

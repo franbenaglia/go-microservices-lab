@@ -167,3 +167,32 @@ func TestValidate(t *testing.T) {
 		}
 	}
 }
+
+// La política se cambia en caliente sin recrear el middleware.
+func TestSetPolicyHot(t *testing.T) {
+	r, err := New(policy(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mw := r.Middleware()
+	var calls atomic.Int32
+	h := mw(handler(10, unavailable, &calls))
+	_, _ = h(opCtx("GetProduct"), nil)
+	if calls.Load() != 3 {
+		t.Fatalf("con 3 intentos: %d", calls.Load())
+	}
+	p := policy()
+	p.MaxAttempts = 5
+	if err := r.SetPolicy(p); err != nil {
+		t.Fatal(err)
+	}
+	calls.Store(0)
+	_, _ = h(opCtx("GetProduct"), nil)
+	if calls.Load() != 5 {
+		t.Fatalf("tras SetPolicy(5): %d", calls.Load())
+	}
+	p.MaxAttempts = 0
+	if r.SetPolicy(p) == nil || r.Policy().MaxAttempts != 5 {
+		t.Fatal("una política inválida se rechaza y se conserva la anterior")
+	}
+}

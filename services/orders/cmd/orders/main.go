@@ -18,6 +18,7 @@ import (
 	inventoryv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/inventory/v1"
 	ordersv1 "github.com/franbenaglia/go-microservices-lab/api/gen/go/orders/v1"
 	"github.com/franbenaglia/go-microservices-lab/pkg/discovery"
+	"github.com/franbenaglia/go-microservices-lab/pkg/dynconfig"
 	"github.com/franbenaglia/go-microservices-lab/pkg/platform"
 	"github.com/franbenaglia/go-microservices-lab/pkg/postgres"
 	"github.com/franbenaglia/go-microservices-lab/pkg/telemetry"
@@ -62,7 +63,7 @@ func run() error {
 	}
 
 	id := platform.Identity{Service: ServiceName, Instance: platform.InstanceID(ServiceName), Version: Version}
-	logger, _, err := platform.NewLogger(id, cfg.Log.Level)
+	logger, logLevel, err := platform.NewLogger(id, cfg.Log.Level)
 	if err != nil {
 		return err
 	}
@@ -133,14 +134,15 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	res, resMws, err := resilience.New(cfg.Resilience, logger, onTransition)
+	res, resMws, err := resilience.New(cfg.Resilience, cfg.Inventory.Timeout.Std(), logger, onTransition)
 	if err != nil {
 		return err
 	}
 	if err := res.RegisterMetrics(tel.Meter); err != nil {
 		return err
 	}
-	conn, err := server.NewInventoryConn(context.Background(), cfg.Inventory, disc, logger, clientTel, resMws)
+	conn, err := server.NewInventoryConn(context.Background(), cfg.Inventory, disc, logger,
+		res.DeadlineMiddleware(), clientTel, resMws)
 	if err != nil {
 		return fmt.Errorf("cliente de inventory: %w", err)
 	}
@@ -160,8 +162,44 @@ func run() error {
 	ordersv1.RegisterOrdersServiceHTTPServer(httpSrv, svc)
 	// Endpoints de diagnóstico (/api/orders/lab/*) solo en modo laboratorio.
 	if platform.LabMode() {
-		lab := service.NewLabService(invClient, cfg.Inventory.Balancer, res, cfg.Inventory.Timeout.Std())
+		lab := service.NewLabService(invClient, cfg.Inventory.Balancer, res)
 		ordersv1.RegisterLabServiceHTTPServer(httpSrv, lab)
+	}
+
+	// Configuración dinámica (Consul KV): nivel de log, timeout de las llamadas,
+	// breaker y retry. Cada cambio se valida completo antes de aplicarse.
+	consulClient, err := discovery.NewClient(cfg.Consul)
+	if err != nil {
+		return err
+	}
+	dyn, err := dynconfig.New(dynconfig.Options[conf.Dynamic]{
+		Service:  ServiceName,
+		Client:   consulClient,
+		Defaults: cfg.Dynamic(),
+		Validate: func(_, next *conf.Dynamic) error {
+			if err := next.Validate(); err != nil {
+				return err
+			}
+			return res.Validate(next.Resilience, next.Inventory.Timeout.Std())
+		},
+		Apply: func(_, next *conf.Dynamic) {
+			_ = platform.SetLogLevel(logLevel, next.Log.Level) // ya validado
+			if err := res.Update(next.Resilience, next.Inventory.Timeout.Std()); err != nil {
+				logger.Error("no se pudo aplicar la resiliencia", slog.Any("error", err))
+			}
+		},
+		Logger: logger,
+		Meter:  tel.Meter,
+	})
+	if err != nil {
+		return err
+	}
+	if err := dyn.Start(initCtx); err != nil {
+		return fmt.Errorf("configuración dinámica: %w", err)
+	}
+	defer dyn.Close()
+	if platform.LabMode() {
+		httpSrv.HandleFunc("/admin/config", dyn.Handler(id.Instance, cfg.Static(), conf.RestartRequired))
 	}
 	grpcSrv := server.NewGRPCServer(cfg.Server.GRPC, svc, logger, serverTel)
 

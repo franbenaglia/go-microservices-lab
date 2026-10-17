@@ -45,13 +45,10 @@ func (r *Resilience) RegisterMetrics(m metric.Meter) error {
 	if err != nil {
 		return err
 	}
-	insts = append(insts, retries)
-	if r.Breaker != nil {
-		insts = append(insts, state, rejected, calls)
-	}
+	insts = append(insts, retries, state, rejected, calls)
 
 	_, err = m.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		if b := r.Breaker; b != nil {
+		if b := r.Breaker(); b != nil {
 			snap := b.Snapshot()
 			o.ObserveInt64(state, stateValue[snap.State], attrs)
 			o.ObserveInt64(rejected, int64(snap.Rejected), attrs)
@@ -60,7 +57,7 @@ func (r *Resilience) RegisterMetrics(m metric.Meter) error {
 			o.ObserveInt64(calls, int64(snap.Failures), metric.WithAttributes(
 				attribute.String("breaker", "inventory-service"), attribute.String("result", "failure")))
 		}
-		st := r.Retrier.Stats()
+		st := r.Retrier().Stats()
 		for ev, v := range map[string]uint64{
 			"attempts": st.Attempts, "retries": st.Retries, "recovered": st.Recovered,
 			"exhausted": st.Exhausted, "not_retryable": st.NotRetryable,

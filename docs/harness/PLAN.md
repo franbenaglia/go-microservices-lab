@@ -64,16 +64,20 @@ Cada fase termina con: compilar → pruebas → verificación real → resumen �
 - Pendiente para la Fase 7: el span de Traefik en la traza (Cliente → Gateway → Orders → Inventory).
 - El nivel de log dinámico queda para la Fase 6 (Consul KV); el `LevelVar` ya existe.
 
-## Fase 6 — Configuración centralizada
-- [ ] Source `contrib/config/consul/v3` + archivo local como base; seed del KV
-- [ ] Recarga dinámica con validación y `atomic.Pointer` (sin carreras)
-- [ ] Nivel de log dinámico (slog.LevelVar ya creado en platform.NewLogger)
-- [ ] Fallos de laboratorio centralizados en KV (`lab/inventory/faults`) para todas las réplicas
-- [ ] Tabla de parámetros dinámicos y de los que requieren reinicio (docs)
-- **Aceptación:** cambiar el timeout o el umbral del breaker en KV se refleja sin reinicio y los valores inválidos se rechazan.
+## Fase 6 — Configuración centralizada ✅ (2026-10-17)
+- [x] Fuente `contrib/config/consul/v3` + observadores de Kratos; documento `config/<svc>/dynamic.yaml` sembrado con CAS
+- [x] Recarga dinámica con validación completa y `atomic.Pointer` (sin carreras; test con -race)
+- [x] Orders: nivel de log, timeout de llamadas (deadline dinámico), retry y breaker en caliente
+- [x] Inventory: nivel de log y fallos de laboratorio centralizados (todas las réplicas)
+- [x] `/admin/config` (GET/PUT) y `config_reloads_total` (+ panel en Grafana)
+- [x] Tabla de parámetros dinámicos frente a los de reinicio (docs/fases/fase-6.md)
+- [x] `scripts/lab/config.sh` (`make lab-config`); lib.sh adaptado (lo dinámico por /admin/config)
+- **Aceptación:** cumplida. `make lab-config` 28/28; regresión smoke 17, discovery 10, lb 19,
+  resilience 19, observability 29; 13 paquetes de pruebas en verde.
 
 ## Fase 7 — API Gateway y frontend
 - [ ] Tracing en Traefik (span del gateway en la traza; W3C)
+- [ ] Exponer /admin/config y /admin/faults solo desde la red local (frontend: página Configuration)
 - [ ] Traefik con el provider consulCatalog, rutas `/api/orders`, `/api/products`, `/api/inventory`, logs de acceso, cabeceras, ipAllowList para admin
 - [ ] Frontend Svelte: Dashboard, Products, Orders, LB Lab, CB Lab, Tracing, Configuration
 - **Aceptación:** todo el uso desde el navegador pasa por Traefik; los labs funcionan de punta a punta.

@@ -13,6 +13,27 @@ Entrada por sesión, la más reciente arriba. Plantilla:
 
 ---
 
+## Sesión 3 — 2026-10-17 — Fase 6
+**Hecho:** pkg/dynconfig (Manager genérico sobre contrib/config/consul/v3, siembra con CAS, validación todo o nada,
+/admin/config GET/PUT, detección de YAML mal formado, métrica), retry con política atómica (SetPolicy), resiliencia de
+Orders reconfigurable (switchable breaker, deadline dinámico, Validate/Update), separación Breaker{Kind; BreakerParams},
+Dynamic/Static/RestartRequired en las conf, integración en ambos main, lib.sh (orders_with por KV, get/set_config),
+scripts/lab/config.sh, panel de recargas en Grafana, docs/fases/fase-6.md.
+**Verificación:**
+- Tests: dynconfig (integración con Consul: siembra, aplicación por watcher, rechazo, YAML mal formado, PUT inválido),
+  resiliencia en caliente (swap del breaker solo si cambian los umbrales, activar/desactivar, deadline dinámico,
+  validación, actualizaciones concurrentes con -race ×3), retry.SetPolicy; `make test-integration`: 13 paquetes ok.
+- `make lab-config` 28/28; regresión: smoke 17, discovery 10, lb 19, resilience 19, observability 29.
+**Decisiones:** ADR-022, ADR-023.
+**Problemas encontrados:**
+- Comillas en las claves del YAML generado → estilo solo en los valores.
+- KV > entorno rompía `orders_with BREAKER_ENABLED=...` → ahora por /admin/config.
+- breaker.kind en el documento dinámico habría invalidado el documento al cambiar el kind por entorno → fuera del documento.
+- Kratos descarta en silencio el YAML mal formado → validación del valor crudo en GET.
+**Siguiente:** Fase 7 (Traefik + frontend Svelte).
+
+---
+
 ## Sesión 2 — 2026-10-16 — Fase 5
 **Hecho:** pkg/telemetry (Setup, middlewares, X-Trace-Id, contador por instancia, service_ready), spans de negocio en
 ambos biz, otelpgx (spans y pool), extractor trace_id en slog, métricas de breaker y retry (observables) y de negocio,

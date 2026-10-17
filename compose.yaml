@@ -5,6 +5,7 @@
 # Fase 3: balanceo del lado cliente (INVENTORY_BALANCER, --scale inventory=N).
 # Fase 4: resiliencia (BREAKER_*, RETRY_*) e inyección de fallos (LAB_MODE).
 # Fase 5: observabilidad (OTel Collector, Jaeger, Prometheus, Grafana).
+# Fase 6: configuración dinámica en Consul KV (config/<servicio>/dynamic.yaml).
 # Las credenciales se leen de .env (ver .env.example).
 #
 # Nota: los puertos HTTP de los servicios se publican en 127.0.0.1 de forma
@@ -103,6 +104,9 @@ services:
       # Selector de balanceo del lado cliente: wrr | p2c | random.
       APP_INVENTORY_BALANCER: ${INVENTORY_BALANCER:-wrr}
       # Resiliencia del cliente hacia Inventory (ver services/orders/configs/config.yaml).
+      # BREAKER_KIND requiere reinicio. BREAKER_ENABLED y RETRY_ENABLED solo dan el
+      # valor inicial con el que se siembra Consul KV: después manda el documento
+      # config/orders-service/dynamic.yaml (cambiarlo con PUT /admin/config).
       APP_BREAKER_ENABLED: ${BREAKER_ENABLED:-true}
       APP_BREAKER_KIND: ${BREAKER_KIND:-classic}
       APP_RETRY_ENABLED: ${RETRY_ENABLED:-true}

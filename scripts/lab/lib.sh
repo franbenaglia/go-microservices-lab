@@ -98,10 +98,53 @@ clear_faults() {
 resilience() { curl -s "$ORDERS_URL/api/orders/lab/resilience"; }
 breaker_state() { resilience | jq -r .breaker.state; }
 
-# Recrea Orders con otras variables (siempre: así el breaker y los contadores
-# empiezan de cero), p. ej.: orders_with BREAKER_ENABLED=false RETRY_ENABLED=true
+# Recrea Orders (breaker y contadores desde cero) y aplica la configuración:
+#   - INVENTORY_BALANCER, BREAKER_KIND: requieren reinicio → variables de entorno.
+#   - BREAKER_ENABLED, RETRY_ENABLED: dinámicas → Consul KV vía /admin/config
+#     (el documento de Consul tiene prioridad sobre el entorno).
+# Ejemplo: orders_with BREAKER_ENABLED=false RETRY_ENABLED=true
 orders_with() {
-  env "$@" docker compose up -d --wait --force-recreate orders >/dev/null 2>&1
+  local restart=() breaker="" retry="" kv
+  for kv in "$@"; do
+    case ${kv%%=*} in
+      BREAKER_ENABLED) breaker=${kv#*=} ;;
+      RETRY_ENABLED) retry=${kv#*=} ;;
+      *) restart+=("$kv") ;;
+    esac
+  done
+  env "${restart[@]}" docker compose up -d --wait --force-recreate orders >/dev/null 2>&1
+  if [[ -n $breaker || -n $retry ]]; then
+    local patch want
+    patch=$(jq -n --arg b "$breaker" --arg r "$retry" '{resilience: (
+      (if $b != "" then {breaker: {enabled: ($b == "true")}} else {} end) +
+      (if $r != "" then {retry: {enabled: ($r == "true")}} else {} end))}')
+    set_config orders "$patch" >/dev/null
+    want="${breaker:-any}|${retry:-any}"
+    wait_for 15 ok resilience_matches "$want" >/dev/null ||
+      echo "  aviso: la configuración dinámica no se reflejó a tiempo" >&2
+  fi
+}
+
+resilience_matches() { # resilience_matches "true|false" (any = no se comprueba)
+  local b r got
+  got=$(resilience | jq -r '"\(.breaker.enabled)|\(.retry.enabled)"')
+  b=${1%%|*} r=${1##*|}
+  [[ ($b == any || $b == "${got%%|*}") && ($r == any || $r == "${got##*|}") ]] && echo ok
+}
+
+# --- Fase 6: configuración dinámica (Consul KV) ---
+
+service_url() { # service_url orders|inventory [índice]
+  case $1 in
+    orders) echo "$ORDERS_URL" ;;
+    inventory) echo "http://$(docker compose port --index "${2:-1}" inventory 8000)" ;;
+  esac
+}
+
+get_config() { curl -s "$(service_url "$1" "${2:-1}")/admin/config"; }
+
+set_config() { # set_config orders|inventory JSON  → código HTTP
+  curl -s -o /dev/null -w '%{http_code}' -X PUT "$(service_url "$1")/admin/config" --data-binary @- <<<"$2"
 }
 
 injected_total() { # errores inyectados acumulados en todas las réplicas (peticiones que llegaron)

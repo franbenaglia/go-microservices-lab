@@ -102,12 +102,16 @@ func SetBalancer(name string) error {
 //
 // El timeout de Kratos (WithTimeout) envuelve toda la cadena: es el
 // presupuesto total de la llamada, reintentos incluidos.
-func NewInventoryConn(ctx context.Context, c conf.Inventory, disc registry.Discovery, logger *slog.Logger, telemetry, resilience []middleware.Middleware) (*ggrpc.ClientConn, error) {
-	mws := append(append([]middleware.Middleware{}, telemetry...), metadata.Client(), logging.Client(logger))
+//
+// El timeout total no se fija con grpc.WithTimeout (sería inmutable): lo aplica
+// deadline, el primer middleware, con el valor vigente de la configuración dinámica.
+func NewInventoryConn(ctx context.Context, c conf.Inventory, disc registry.Discovery, logger *slog.Logger, deadline middleware.Middleware, telemetry, resilience []middleware.Middleware) (*ggrpc.ClientConn, error) {
+	mws := append([]middleware.Middleware{deadline}, telemetry...)
+	mws = append(mws, metadata.Client(), logging.Client(logger))
 	mws = append(mws, resilience...)
 	opts := []grpc.ClientOption{
 		grpc.WithEndpoint(c.Endpoint),
-		grpc.WithTimeout(c.Timeout.Std()),
+		grpc.WithTimeout(0), // sin timeout fijo de Kratos (por defecto 2s): lo aplica deadline
 		grpc.WithMiddleware(mws...),
 	}
 	if disc != nil {
